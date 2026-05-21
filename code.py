@@ -6,12 +6,12 @@ import time
 
 # Page configuration
 st.set_page_config(
-    page_title="✨ English Teacher's Platform ✨",
-    page_icon="🌸",
+    page_title="📚 English Teacher's Platform 📚",
+    page_icon="📖",
     layout="wide"
 )
 
-# Custom CSS for feminine colors and animations
+# Custom CSS with feminine colors and study-related animations
 st.markdown("""
 <style>
     /* Main background */
@@ -23,6 +23,24 @@ st.markdown("""
     h1, h2, h3 {
         color: #c2185b !important;
         font-family: 'Segoe UI', 'Helvetica', cursive !important;
+    }
+    
+    /* English Pay Logo Style */
+    .english-pay-logo {
+        background: linear-gradient(135deg, #ff69b4, #c2185b);
+        border-radius: 50px;
+        padding: 8px 20px;
+        display: inline-block;
+        color: white;
+        font-weight: bold;
+        font-size: 20px;
+        box-shadow: 0 4px 15px rgba(194, 24, 91, 0.3);
+        animation: gentlePulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes gentlePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
     }
     
     /* Buttons */
@@ -141,15 +159,26 @@ st.markdown("""
         animation: fadeInUp 0.6s ease-out;
     }
     
-    /* Custom heart animation */
-    .heart {
-        animation: heartbeat 1.5s ease infinite;
+    /* Book animation */
+    .book-icon {
+        animation: gentleWave 2s ease-in-out infinite;
+        display: inline-block;
     }
     
-    @keyframes heartbeat {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
+    @keyframes gentleWave {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(5deg); }
+    }
+    
+    /* Pen writing animation */
+    .pen-icon {
+        animation: write 1.5s ease-in-out infinite;
+        display: inline-block;
+    }
+    
+    @keyframes write {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(3px); }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -190,27 +219,37 @@ def delete_course(course_key, course_path):
 
 # Main application
 def main():
-    # Animated title
+    # Animated title with English Pay Logo
     st.markdown("""
         <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
-            <h1>🌸 English Teacher's Platform 🌸</h1>
-            <p style="color: #c2185b; font-size: 18px;">✨ Make learning beautiful and fun! ✨</p>
+            <div class="english-pay-logo">
+                📚 ENGLISH PAY 📖
+            </div>
+            <h1>📖 English Teacher's Platform 📝</h1>
+            <p style="color: #c2185b; font-size: 18px;">✍️ Learn, Practice, and Master English! ✨</p>
         </div>
     """, unsafe_allow_html=True)
     
-    # Heart animation decoration
+    # Study-related decoration
     st.markdown("""
-        <div style="text-align: center; margin-bottom: 20px;" class="heart">
-            💖 💗 💕 💓 💝
+        <div style="text-align: center; margin-bottom: 20px; font-size: 28px;">
+            <span class="book-icon">📚</span> 
+            <span class="pen-icon">✍️</span> 
+            <span>📖</span> 
+            <span>🎓</span> 
+            <span>📝</span> 
+            <span>✏️</span>
+            <span>📕</span>
         </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar with feminine design
+    # Sidebar with study theme
     with st.sidebar:
         st.markdown("""
             <div style="text-align: center; padding: 20px 0;">
-                <h3 style="color: #ff69b4;">✨ Welcome! ✨</h3>
-                <div style="font-size: 30px;">👩‍🏫</div>
+                <div style="font-size: 50px;">📚</div>
+                <h3 style="color: #ff69b4;">Study Zone</h3>
+                <div style="font-size: 20px;">✏️ 🎓 📖</div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -221,7 +260,8 @@ def main():
         )
         
         st.markdown("---")
-        st.caption("🌸 Made with love for English teachers 🌸")
+        st.caption("📚 English Learning Platform 📝")
+        st.caption("✍️ Made for dedicated English teachers")
     
     metadata = load_metadata()
     
@@ -236,20 +276,20 @@ def teacher_mode(metadata):
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.subheader("🌸 Upload New Course")
+        st.subheader("📝 Upload New Course")
         
-        # Level selection with emojis
+        # Level selection with study emojis
         level_col1, level_col2 = st.columns(2)
         with level_col1:
             level = st.selectbox("📚 Main Level", ["A", "B", "C"])
         with level_col2:
-            sub_level = st.selectbox("🎯 Sub-level", ["1", "2", "3"])
+            sub_level = st.selectbox("📖 Sub-level", ["1", "2", "3"])
         
         full_level = f"{level}{sub_level}"
         
         # Course details
-        title = st.text_input("📖 Course Title", placeholder="e.g., Present Simple Tense")
-        description = st.text_area("💭 Description", placeholder="What will students learn?")
+        title = st.text_input("📝 Course Title", placeholder="e.g., Present Simple Tense")
+        description = st.text_area("✍️ Description", placeholder="What will students learn?")
         
         # File upload
         uploaded_file = st.file_uploader(
@@ -259,7 +299,7 @@ def teacher_mode(metadata):
         )
         
         # Save button with animation
-        if st.button("💖 Save Course", use_container_width=True):
+        if st.button("📚 Save Course", use_container_width=True):
             if title and uploaded_file:
                 # Save file
                 save_path = Path(f"courses/Level_{level}/{level}{sub_level}/{uploaded_file.name}")
@@ -282,14 +322,14 @@ def teacher_mode(metadata):
                 
                 # Success animation
                 st.balloons()
-                st.success(f"✨ Course '{title}' saved successfully! ✨")
+                st.success(f"📖 Course '{title}' saved successfully! 📚")
                 time.sleep(0.5)
                 st.rerun()
             else:
-                st.error("💔 Please add a title and file!")
+                st.error("📝 Please add a title and file!")
     
     with col2:
-        st.subheader("📊 Quick Stats")
+        st.subheader("📊 Study Statistics")
         total_courses = len(metadata)
         st.info(f"📚 **Total courses:** {total_courses}")
         
@@ -320,10 +360,10 @@ def teacher_mode(metadata):
                 with col1:
                     st.markdown(f"""
                         <div class="course-card">
-                            <strong>📘 {course['title']}</strong><br>
-                            <small>🎯 Level {course['level']}</small><br>
+                            <strong>📖 {course['title']}</strong><br>
+                            <small>📚 Level {course['level']}</small><br>
                             <small>📅 {course['upload_date']}</small><br>
-                            <small>💭 {course['description']}</small>
+                            <small>✍️ {course['description']}</small>
                         </div>
                     """, unsafe_allow_html=True)
                 
@@ -341,25 +381,25 @@ def teacher_mode(metadata):
                 with col3:
                     if st.button(f"🗑️ Delete", key=f"del_{key}"):
                         if delete_course(key, course["path"]):
-                            st.warning(f"💔 Course '{course['title']}' deleted")
+                            st.warning(f"📝 Course '{course['title']}' deleted")
                             time.sleep(0.5)
                             st.rerun()
     else:
-        st.info("🌸 No courses yet. Upload your first course above!")
+        st.info("📚 No courses yet. Upload your first course above! ✍️")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
 def student_mode(metadata):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
-    st.subheader("🎓 Browse Your Courses")
+    st.subheader("🎓 Browse Your English Courses")
     
     # Level selection with visual feedback
     col1, col2 = st.columns(2)
     with col1:
         level = st.selectbox("📚 Select Main Level", ["A", "B", "C"])
     with col2:
-        sub_level = st.selectbox("🎯 Select Sub-level", ["1", "2", "3"])
+        sub_level = st.selectbox("📖 Select Sub-level", ["1", "2", "3"])
     
     full_level = f"{level}{sub_level}"
     
@@ -367,7 +407,7 @@ def student_mode(metadata):
     available_courses = {k: v for k, v in metadata.items() if v["level"] == full_level}
     
     if available_courses:
-        st.success(f"✨ Found {len(available_courses)} course(s) for Level {full_level} ✨")
+        st.success(f"📚 Found {len(available_courses)} course(s) for Level {full_level} ✍️")
         
         for key, course in available_courses.items():
             with st.expander(f"📖 {course['title']}", expanded=True):
@@ -376,10 +416,10 @@ def student_mode(metadata):
                 with col1:
                     st.markdown(f"""
                         <div style="background: #fff0f5; padding: 15px; border-radius: 15px;">
-                            <strong>💭 Description:</strong><br>
+                            <strong>✍️ Description:</strong><br>
                             {course['description']}<br><br>
                             <strong>📅 Uploaded:</strong> {course['upload_date']}<br>
-                            <strong>🎯 Level:</strong> {course['level']}
+                            <strong>📚 Level:</strong> {course['level']}
                         </div>
                     """, unsafe_allow_html=True)
                 
@@ -394,22 +434,25 @@ def student_mode(metadata):
                             key=f"student_download_{key}"
                         )
                 
-                # Fun fact button
-                if st.button(f"💡 Get a tip for this course", key=f"tip_{key}"):
+                # Study tip button
+                if st.button(f"📝 Get a study tip", key=f"tip_{key}"):
                     tips = [
-                        "✨ Take notes while watching!",
-                        "💕 Practice with a friend!",
-                        "⭐ Review key vocabulary after!",
-                        "🌸 Ask questions if something is unclear!"
+                        "📚 Take notes while studying!",
+                        "✍️ Practice writing what you learn!",
+                        "📖 Review the material twice!",
+                        "🎓 Ask questions if something is unclear!",
+                        "📝 Test yourself after each lesson!",
+                        "✏️ Create flashcards for new words!"
                     ]
                     import random
-                    st.info(f"💖 Tip: {random.choice(tips)}")
+                    st.info(f"📚 Study Tip: {random.choice(tips)}")
     else:
-        st.warning(f"💔 No courses available for Level {full_level} yet.")
+        st.warning(f"📚 No courses available for Level {full_level} yet.")
         st.markdown("""
             <div style="text-align: center; padding: 40px;">
-                <div style="font-size: 50px;">📚✨</div>
+                <div style="font-size: 50px;">📚 ✍️ 📖</div>
                 <p style="color: #c2185b;">Ask your teacher to upload courses for this level!</p>
+                <p style="color: #ff69b4;">Keep studying English! 🌸</p>
             </div>
         """, unsafe_allow_html=True)
     
