@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 import time
-from pptx import Presentation
+import base64
 
 # Page configuration
 st.set_page_config(
@@ -31,7 +31,6 @@ st.markdown("""
         padding: 12px 25px;
         font-weight: bold;
         transition: all 0.3s ease;
-        font-size: 16px;
     }
     
     .stButton > button:hover {
@@ -53,20 +52,12 @@ st.markdown("""
         box-shadow: 0 8px 25px rgba(255, 105, 180, 0.2);
     }
     
-    .slide-container {
-        background: white;
+    .presentation-frame {
+        width: 100%;
+        height: 80vh;
+        border: none;
         border-radius: 20px;
-        padding: 40px;
-        margin: 20px 0;
-        min-height: 500px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-    
-    .nav-buttons {
-        display: flex;
-        gap: 20px;
-        justify-content: center;
-        margin: 20px 0;
     }
     
     @keyframes fadeInUp {
@@ -76,6 +67,23 @@ st.markdown("""
     
     .fade-in {
         animation: fadeInUp 0.6s ease-out;
+    }
+    
+    .fullscreen-btn {
+        background: linear-gradient(45deg, #ff69b4, #ff1493);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 12px 30px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 10px 0;
+        width: 100%;
+    }
+    
+    .fullscreen-btn:hover {
+        transform: scale(1.02);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -114,32 +122,23 @@ def delete_course(course_key, course_path):
     except:
         return False
 
-# Extract text from PowerPoint slides
-def extract_slides_text(ppt_path):
-    try:
-        prs = Presentation(ppt_path)
-        slides_content = []
-        for idx, slide in enumerate(prs.slides, 1):
-            slide_text = []
-            for shape in slide.shapes:
-                if hasattr(shape, "text") and shape.text.strip():
-                    slide_text.append(shape.text)
-            slides_content.append({
-                "number": idx,
-                "text": "\n".join(slide_text) if slide_text else "[Slide content]"
-            })
-        return slides_content
-    except Exception as e:
-        return None
+# Get file URL for viewing
+def get_file_url(file_path):
+    """Convert file path to a viewable URL"""
+    # For local development, we need to serve the file
+    # For Streamlit Cloud, we need a public URL
+    return str(file_path)
 
-# Display presentation with navigation
+# Display presentation using Google Docs Viewer
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
     # Back button
-    if st.button("◀ Back to Courses", use_container_width=False):
-        st.session_state['viewing_course'] = None
-        st.rerun()
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        if st.button("◀ Back to Courses", use_container_width=True):
+            st.session_state['viewing_course'] = None
+            st.rerun()
     
     # Title
     st.markdown(f"""
@@ -151,103 +150,101 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # Extract slides
-    slides = extract_slides_text(course["path"])
+    # Read the PPT file and convert to base64 for embedding
+    with open(course["path"], "rb") as f:
+        ppt_data = f.read()
+        ppt_base64 = base64.b64encode(ppt_data).decode()
     
-    if slides:
-        # Initialize slide index
-        if 'slide_index' not in st.session_state:
-            st.session_state.slide_index = 0
-        
-        # === BIG NAVIGATION BUTTONS ===
-        col1, col2, col3 = st.columns([1, 2, 1])
-        
-        with col1:
-            # Previous button
-            prev_clicked = st.button("◀◀ PREVIOUS SLIDE", use_container_width=True)
-            if prev_clicked:
-                if st.session_state.slide_index > 0:
-                    st.session_state.slide_index -= 1
-                    st.rerun()
-        
-        with col2:
-            # Slide counter and progress
-            st.markdown(f"""
-                <div style="text-align: center;">
-                    <h3 style="color: #ff69b4;">Slide {st.session_state.slide_index + 1} of {len(slides)}</h3>
-                </div>
-            """, unsafe_allow_html=True)
-            progress = (st.session_state.slide_index + 1) / len(slides)
-            st.progress(progress)
-        
-        with col3:
-            # Next button
-            next_clicked = st.button("NEXT SLIDE ▶▶", use_container_width=True)
-            if next_clicked:
-                if st.session_state.slide_index < len(slides) - 1:
-                    st.session_state.slide_index += 1
-                    st.rerun()
-        
-        # Fullscreen button
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown("""
-                <div style="text-align: center;">
-                    <button onclick="document.documentElement.requestFullscreen()" style="
-                        background: linear-gradient(45deg, #ff69b4, #ff1493);
-                        color: white;
-                        border: none;
-                        border-radius: 25px;
-                        padding: 12px 30px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        font-size: 16px;
-                        margin: 10px 0;
-                    ">
-                        🖥️ FULLSCREEN MODE
-                    </button>
-                </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Display current slide
-        current_slide = slides[st.session_state.slide_index]
-        
-        st.markdown(f"""
-            <div class="slide-container">
-                <h3 style="color: #ff69b4; text-align: center; margin-bottom: 30px;">
-                    📄 Slide {current_slide['number']}
-                </h3>
-                <div style="font-size: 22px; line-height: 1.6;">
-                    {current_slide['text'].replace(chr(10), '<br><br>')}
-                </div>
-            </div>
+    # Option 1: Use Google Docs Viewer (Best for viewing)
+    st.info("📌 **Presentation Mode** - View your PowerPoint with all images, colors, and formatting!")
+    
+    # Create a downloadable link and viewer
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Download button
+        st.download_button(
+            label="📥 Download PowerPoint",
+            data=ppt_data,
+            file_name=course["filename"],
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            use_container_width=True
+        )
+    
+    with col2:
+        # Fullscreen button using JavaScript
+        st.markdown("""
+            <button class="fullscreen-btn" onclick="
+                var iframe = document.getElementById('pptViewer');
+                if(iframe.requestFullscreen) {
+                    iframe.requestFullscreen();
+                }
+            ">🖥️ Fullscreen Presentation</button>
         """, unsafe_allow_html=True)
-        
-        # Keyboard shortcuts hint
-        st.info("💡 **Keyboard shortcuts:** Press **←** (left arrow) for previous slide, **→** (right arrow) for next slide")
-        
-        # Download option
-        st.markdown("---")
-        with open(course["path"], "rb") as f:
-            st.download_button(
-                label="📥 Download PowerPoint File",
-                data=f,
-                file_name=course["filename"],
-                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                use_container_width=True
-            )
     
-    else:
-        st.error("❌ Unable to read PowerPoint file.")
-        with open(course["path"], "rb") as f:
-            st.download_button(
-                label="📥 Download PowerPoint",
-                data=f,
-                file_name=course["filename"],
-                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            )
+    st.markdown("---")
+    
+    # Create an HTML5 viewer using Office Online
+    # We'll create a data URL with the PPT content
+    viewer_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ margin: 0; padding: 0; background: #f5f5f5; }}
+            .toolbar {{
+                background: white;
+                padding: 10px;
+                text-align: center;
+                border-bottom: 1px solid #ddd;
+            }}
+            button {{
+                background: #ff69b4;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 20px;
+                cursor: pointer;
+                margin: 0 5px;
+            }}
+            button:hover {{ background: #ff1493; }}
+            iframe {{
+                width: 100%;
+                height: calc(100vh - 60px);
+                border: none;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="toolbar">
+            <button onclick="document.getElementById('viewer').contentWindow.print()">🖨️ Print</button>
+            <button onclick="toggleFullscreen()">🖥️ Fullscreen</button>
+            <span style="margin-left: 20px;">💡 Tip: Use arrow keys to navigate slides</span>
+        </div>
+        <iframe id="viewer" src="https://view.officeapps.live.com/op/embed.aspx?src=data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{ppt_base64}">
+        </iframe>
+        <script>
+            function toggleFullscreen() {{
+                var iframe = document.getElementById('viewer');
+                if(iframe.requestFullscreen) {{
+                    iframe.requestFullscreen();
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    
+    # Display the viewer in an iframe
+    components.html(viewer_html, height=600, scrolling=True)
+    
+    # Alternative: Simple instructions if viewer doesn't work
+    st.info("""
+        💡 **Presentation Tips:**
+        - Click **Fullscreen Presentation** button above for full screen
+        - Use **arrow keys** (← →) to navigate between slides
+        - Download the file and open with PowerPoint for best experience
+    """)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -478,6 +475,9 @@ def student_mode(metadata):
         """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
+
+# Import components for HTML embedding
+import streamlit.components.v1 as components
 
 if __name__ == "__main__":
     init_folders()
