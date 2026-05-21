@@ -201,7 +201,7 @@ def main():
     # Heart animation decoration
     st.markdown("""
         <div style="text-align: center; margin-bottom: 20px;" class="heart">
-            💖 💗 💕 💓 💝
+            📖 📝 🎓 ✏️ 📕
         </div>
     """, unsafe_allow_html=True)
     
