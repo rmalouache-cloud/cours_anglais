@@ -3,7 +3,8 @@ import json
 import os
 from pathlib import Path
 import time
-import base64
+from PIL import Image
+import io
 
 # Page configuration
 st.set_page_config(
@@ -35,7 +36,6 @@ st.markdown("""
     
     .stButton > button:hover {
         transform: scale(1.05);
-        background: linear-gradient(45deg, #ff1493, #c2185b);
     }
     
     .course-card {
@@ -49,15 +49,21 @@ st.markdown("""
     
     .course-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(255, 105, 180, 0.2);
     }
     
-    .presentation-frame {
+    .slide-image {
         width: 100%;
-        height: 80vh;
-        border: none;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        margin: 10px 0;
+    }
+    
+    .slide-container {
+        background: white;
         border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin: 20px 0;
+        text-align: center;
     }
     
     @keyframes fadeInUp {
@@ -67,23 +73,6 @@ st.markdown("""
     
     .fade-in {
         animation: fadeInUp 0.6s ease-out;
-    }
-    
-    .fullscreen-btn {
-        background: linear-gradient(45deg, #ff69b4, #ff1493);
-        color: white;
-        border: none;
-        border-radius: 25px;
-        padding: 12px 30px;
-        font-weight: bold;
-        cursor: pointer;
-        font-size: 16px;
-        margin: 10px 0;
-        width: 100%;
-    }
-    
-    .fullscreen-btn:hover {
-        transform: scale(1.02);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -95,6 +84,7 @@ def init_folders():
     for level in levels:
         for sub in sub_levels:
             Path(f"courses/Level_{level}/{level}{sub}").mkdir(parents=True, exist_ok=True)
+            Path(f"courses/Level_{level}/{level}{sub}/images").mkdir(parents=True, exist_ok=True)
     Path("data").mkdir(exist_ok=True)
 
 # Load metadata
@@ -110,10 +100,14 @@ def save_metadata(metadata):
         json.dump(metadata, f, indent=4)
 
 # Delete course
-def delete_course(course_key, course_path):
+def delete_course(course_key, course_path, images_folder):
     try:
         if os.path.exists(course_path):
             os.remove(course_path)
+        # Delete images folder
+        if os.path.exists(images_folder):
+            import shutil
+            shutil.rmtree(images_folder)
         metadata = load_metadata()
         if course_key in metadata:
             del metadata[course_key]
@@ -122,23 +116,59 @@ def delete_course(course_key, course_path):
     except:
         return False
 
-# Get file URL for viewing
-def get_file_url(file_path):
-    """Convert file path to a viewable URL"""
-    # For local development, we need to serve the file
-    # For Streamlit Cloud, we need a public URL
-    return str(file_path)
+# Convert PPT to images using python-pptx (extract text with basic formatting)
+def convert_ppt_to_html_slides(ppt_path):
+    """Convert PPT to HTML slides that preserve formatting"""
+    try:
+        from pptx import Presentation
+        
+        prs = Presentation(ppt_path)
+        slides_html = []
+        
+        for idx, slide in enumerate(prs.slides):
+            html_content = f"""
+            <div style="
+                width: 100%;
+                min-height: 500px;
+                background: white;
+                border-radius: 15px;
+                padding: 40px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            ">
+                <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">
+                    Slide {idx + 1}
+                </h2>
+                <div style="font-size: 20px; line-height: 1.6; margin-top: 20px;">
+            """
+            
+            # Extract text from shapes
+            for shape in slide.shapes:
+                if hasattr(shape, "text") and shape.text.strip():
+                    # Check if it's a title (usually first shape)
+                    if idx == 0 and shape == slide.shapes[0]:
+                        html_content += f"<h1 style='color: #ff69b4;'>{shape.text}</h1>"
+                    else:
+                        html_content += f"<p>{shape.text}</p>"
+            
+            html_content += """
+                </div>
+            </div>
+            """
+            slides_html.append(html_content)
+        
+        return slides_html
+    except Exception as e:
+        return None
 
-# Display presentation using Google Docs Viewer
+# Display presentation
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
     # Back button
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col1:
-        if st.button("◀ Back to Courses", use_container_width=True):
-            st.session_state['viewing_course'] = None
-            st.rerun()
+    if st.button("◀ Back to Courses", use_container_width=False):
+        st.session_state['viewing_course'] = None
+        st.rerun()
     
     # Title
     st.markdown(f"""
@@ -150,101 +180,79 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # Read the PPT file and convert to base64 for embedding
-    with open(course["path"], "rb") as f:
-        ppt_data = f.read()
-        ppt_base64 = base64.b64encode(ppt_data).decode()
+    # Check if we have HTML slides cached
+    slides_html = convert_ppt_to_html_slides(course["path"])
     
-    # Option 1: Use Google Docs Viewer (Best for viewing)
-    st.info("📌 **Presentation Mode** - View your PowerPoint with all images, colors, and formatting!")
+    if slides_html:
+        # Initialize slide index
+        if 'slide_index' not in st.session_state:
+            st.session_state.slide_index = 0
+        
+        # Navigation buttons
+        col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
+        
+        with col1:
+            if st.button("◀◀ PREVIOUS", use_container_width=True):
+                if st.session_state.slide_index > 0:
+                    st.session_state.slide_index -= 1
+                    st.rerun()
+        
+        with col2:
+            st.markdown(f"<h3 style='text-align: center;'>Slide {st.session_state.slide_index + 1} / {len(slides_html)}</h3>", unsafe_allow_html=True)
+        
+        with col3:
+            progress = (st.session_state.slide_index + 1) / len(slides_html)
+            st.progress(progress)
+        
+        with col4:
+            if st.button("NEXT ▶▶", use_container_width=True):
+                if st.session_state.slide_index < len(slides_html) - 1:
+                    st.session_state.slide_index += 1
+                    st.rerun()
+        
+        with col5:
+            # Fullscreen button
+            st.markdown("""
+                <button onclick="document.documentElement.requestFullscreen()" style="
+                    background: linear-gradient(45deg, #ff69b4, #ff1493);
+                    color: white;
+                    border: none;
+                    border-radius: 25px;
+                    padding: 10px 20px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    width: 100%;
+                ">
+                    🖥️ FULLSCREEN
+                </button>
+            """, unsafe_allow_html=True)
+        
+        # Display current slide
+        st.markdown("---")
+        st.markdown(slides_html[st.session_state.slide_index], unsafe_allow_html=True)
+        
+        # Navigation hint
+        st.info("💡 **Tip:** Use ← and → arrow keys on your keyboard to navigate slides")
+        
+        # Download option (in case they want the original)
+        with st.expander("📥 Download Original PowerPoint", expanded=False):
+            with open(course["path"], "rb") as f:
+                st.download_button(
+                    label="Download PPT File",
+                    data=f,
+                    file_name=course["filename"],
+                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                )
     
-    # Create a downloadable link and viewer
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Download button
-        st.download_button(
-            label="📥 Download PowerPoint",
-            data=ppt_data,
-            file_name=course["filename"],
-            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            use_container_width=True
-        )
-    
-    with col2:
-        # Fullscreen button using JavaScript
-        st.markdown("""
-            <button class="fullscreen-btn" onclick="
-                var iframe = document.getElementById('pptViewer');
-                if(iframe.requestFullscreen) {
-                    iframe.requestFullscreen();
-                }
-            ">🖥️ Fullscreen Presentation</button>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Create an HTML5 viewer using Office Online
-    # We'll create a data URL with the PPT content
-    viewer_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {{ margin: 0; padding: 0; background: #f5f5f5; }}
-            .toolbar {{
-                background: white;
-                padding: 10px;
-                text-align: center;
-                border-bottom: 1px solid #ddd;
-            }}
-            button {{
-                background: #ff69b4;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 20px;
-                cursor: pointer;
-                margin: 0 5px;
-            }}
-            button:hover {{ background: #ff1493; }}
-            iframe {{
-                width: 100%;
-                height: calc(100vh - 60px);
-                border: none;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="toolbar">
-            <button onclick="document.getElementById('viewer').contentWindow.print()">🖨️ Print</button>
-            <button onclick="toggleFullscreen()">🖥️ Fullscreen</button>
-            <span style="margin-left: 20px;">💡 Tip: Use arrow keys to navigate slides</span>
-        </div>
-        <iframe id="viewer" src="https://view.officeapps.live.com/op/embed.aspx?src=data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{ppt_base64}">
-        </iframe>
-        <script>
-            function toggleFullscreen() {{
-                var iframe = document.getElementById('viewer');
-                if(iframe.requestFullscreen) {{
-                    iframe.requestFullscreen();
-                }}
-            }}
-        </script>
-    </body>
-    </html>
-    """
-    
-    # Display the viewer in an iframe
-    components.html(viewer_html, height=600, scrolling=True)
-    
-    # Alternative: Simple instructions if viewer doesn't work
-    st.info("""
-        💡 **Presentation Tips:**
-        - Click **Fullscreen Presentation** button above for full screen
-        - Use **arrow keys** (← →) to navigate between slides
-        - Download the file and open with PowerPoint for best experience
-    """)
+    else:
+        st.error("❌ Cannot display this PowerPoint. Please make sure the file is valid.")
+        with open(course["path"], "rb") as f:
+            st.download_button(
+                label="📥 Download PowerPoint",
+                data=f,
+                file_name=course["filename"],
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            )
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -322,12 +330,16 @@ def teacher_mode(metadata):
         
         if st.button("💖 Save Course", use_container_width=True):
             if title and uploaded_file:
-                save_path = Path(f"courses/Level_{level}/{level}{sub_level}/{uploaded_file.name}")
-                save_path.parent.mkdir(parents=True, exist_ok=True)
+                # Create folder for this course
+                course_folder = Path(f"courses/Level_{level}/{level}{sub_level}")
+                course_folder.mkdir(parents=True, exist_ok=True)
                 
+                # Save file
+                save_path = course_folder / uploaded_file.name
                 with open(save_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 
+                # Save metadata
                 course_key = f"{full_level}_{uploaded_file.name}"
                 metadata[course_key] = {
                     "title": title,
@@ -400,7 +412,9 @@ def teacher_mode(metadata):
                 
                 with col3:
                     if st.button(f"🗑️ Delete", key=f"del_{key}"):
-                        if delete_course(key, course["path"]):
+                        course_folder = Path(course["path"]).parent
+                        images_folder = course_folder / "images"
+                        if delete_course(key, course["path"], images_folder):
                             st.warning(f"💔 Course '{course['title']}' deleted")
                             time.sleep(0.5)
                             st.rerun()
@@ -475,9 +489,6 @@ def student_mode(metadata):
         """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
-
-# Import components for HTML embedding
-import streamlit.components.v1 as components
 
 if __name__ == "__main__":
     init_folders()
