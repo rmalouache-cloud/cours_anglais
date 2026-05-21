@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import time
 from pptx import Presentation
+import streamlit.components.v1 as components
 
 # Page configuration
 st.set_page_config(
@@ -245,14 +246,6 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # Fullscreen instructions
-    st.info("""
-        🎬 **TO PRESENT IN FULLSCREEN:**
-        1. Press **F11** on your keyboard (Windows/Linux) or **Cmd+Shift+F** (Mac)
-        2. Use the buttons below to navigate through slides
-        3. Press **F11** again to exit fullscreen when done
-    """)
-    
     # Extract slides
     slides = extract_slides_text(course["path"])
     
@@ -284,7 +277,31 @@ def display_presentation(course):
                     st.rerun()
         
         with col5:
-            st.button("🖥️ F11 = Fullscreen", use_container_width=True, disabled=True, help="Press F11 on your keyboard for fullscreen mode")
+            # AUTO FULLSCREEN BUTTON - Works without F11!
+            components.html("""
+                <button onclick="document.documentElement.requestFullscreen()" style="
+                    background: linear-gradient(45deg, #ff69b4, #ff1493);
+                    color: white;
+                    border: none;
+                    border-radius: 25px;
+                    padding: 10px 25px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    width: 100%;
+                    font-size: 16px;
+                    transition: all 0.3s ease;
+                ">
+                    🖥️ Fullscreen Mode
+                </button>
+                <script>
+                    // Add hover effect
+                    const btn = document.querySelector('button');
+                    if(btn) {
+                        btn.onmouseover = () => btn.style.transform = 'scale(1.05)';
+                        btn.onmouseout = () => btn.style.transform = 'scale(1)';
+                    }
+                </script>
+            """, height=50)
         
         # Display current slide
         current_slide = slides[st.session_state.slide_index]
@@ -299,7 +316,7 @@ def display_presentation(course):
         """, unsafe_allow_html=True)
         
         # Keyboard shortcut hint
-        st.caption("💡 **Tip:** You can also use the **←** and **→** keys on your keyboard to navigate between slides (click outside the text box first)")
+        st.caption("💡 **Tip:** Use the **←** and **→** keys on your keyboard to navigate between slides")
         
         # Presenter notes area
         with st.expander("📝 Presenter Notes (only visible to you)", expanded=False):
