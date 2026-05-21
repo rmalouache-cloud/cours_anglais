@@ -4,10 +4,6 @@ import os
 from pathlib import Path
 import time
 from pptx import Presentation
-from PIL import Image
-import io
-import tempfile
-import subprocess
 
 # Page configuration
 st.set_page_config(
@@ -16,7 +12,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS for feminine colors and animations
+# Custom CSS
 st.markdown("""
 <style>
     .stApp {
@@ -25,7 +21,6 @@ st.markdown("""
     
     h1, h2, h3 {
         color: #c2185b !important;
-        font-family: 'Segoe UI', 'Helvetica', cursive !important;
     }
     
     .stButton > button {
@@ -33,47 +28,15 @@ st.markdown("""
         color: white;
         border-radius: 25px;
         border: none;
-        padding: 10px 25px;
+        padding: 12px 25px;
         font-weight: bold;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3);
+        font-size: 16px;
     }
     
     .stButton > button:hover {
         transform: scale(1.05);
         background: linear-gradient(45deg, #ff1493, #c2185b);
-        box-shadow: 0 6px 20px rgba(255, 20, 147, 0.4);
-        transition: all 0.3s ease;
-    }
-    
-    .stAlert {
-        animation: slideIn 0.5s ease-out;
-        background: linear-gradient(90deg, #ffe0f0, #fff0f5);
-        border-left: 5px solid #ff69b4;
-    }
-    
-    @keyframes slideIn {
-        from {
-            transform: translateX(-100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    .streamlit-expanderHeader {
-        background: linear-gradient(90deg, #fff0f5, #ffe6f0);
-        border-radius: 15px;
-        color: #c2185b;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    
-    .streamlit-expanderHeader:hover {
-        background: linear-gradient(90deg, #ffe0f0, #ffd9e8);
-        transform: translateX(5px);
     }
     
     .course-card {
@@ -82,102 +45,37 @@ st.markdown("""
         padding: 20px;
         margin: 10px 0;
         box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        transition: all 0.3s ease;
         border: 1px solid #ffc0cb;
     }
     
     .course-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 8px 25px rgba(255, 105, 180, 0.2);
-        border-color: #ff69b4;
-    }
-    
-    .stSelectbox > div > div {
-        background-color: white;
-        border-radius: 15px;
-        border: 2px solid #ffc0cb;
-        transition: all 0.3s ease;
-    }
-    
-    .stSelectbox > div > div:hover {
-        border-color: #ff69b4;
-        box-shadow: 0 0 10px rgba(255, 105, 180, 0.3);
-    }
-    
-    .stRadio > div {
-        background: rgba(255, 255, 255, 0.7);
-        border-radius: 15px;
-        padding: 10px;
-    }
-    
-    .stFileUploader > div {
-        background: rgba(255, 255, 255, 0.8);
-        border-radius: 20px;
-        border: 2px dashed #ff69b4;
-    }
-    
-    .css-1d391kg {
-        background: linear-gradient(180deg, #fff0f5, #ffe0f0);
-    }
-    
-    @keyframes fadeInUp {
-        from {
-            transform: translateY(20px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-    
-    .fade-in {
-        animation: fadeInUp 0.6s ease-out;
-    }
-    
-    .heart {
-        animation: heartbeat 1.5s ease infinite;
-    }
-    
-    @keyframes heartbeat {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
     }
     
     .slide-container {
         background: white;
         border-radius: 20px;
-        padding: 20px;
+        padding: 40px;
         margin: 20px 0;
+        min-height: 500px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        text-align: center;
     }
     
-    .slide-image {
-        max-width: 100%;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    
-    .fullscreen-slide {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: white;
-        z-index: 9999;
+    .nav-buttons {
         display: flex;
-        align-items: center;
+        gap: 20px;
         justify-content: center;
-        padding: 20px;
+        margin: 20px 0;
     }
     
-    .fullscreen-slide img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
+    @keyframes fadeInUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .fade-in {
+        animation: fadeInUp 0.6s ease-out;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -190,7 +88,6 @@ def init_folders():
         for sub in sub_levels:
             Path(f"courses/Level_{level}/{level}{sub}").mkdir(parents=True, exist_ok=True)
     Path("data").mkdir(exist_ok=True)
-    Path("slides_images").mkdir(exist_ok=True)
 
 # Load metadata
 def load_metadata():
@@ -217,146 +114,140 @@ def delete_course(course_key, course_path):
     except:
         return False
 
-# Convert PPT to images using python-pptx + pillow (simple method)
-def ppt_to_images_simple(ppt_path):
-    """Extract images from PowerPoint slides"""
+# Extract text from PowerPoint slides
+def extract_slides_text(ppt_path):
     try:
-        from pptx import Presentation
-        from io import BytesIO
-        
         prs = Presentation(ppt_path)
-        images = []
-        
-        # For each slide, create an image representation
-        for idx, slide in enumerate(prs.slides):
-            # Create a temporary HTML representation
-            slide_html = f"""
-            <div style="
-                width: 960px;
-                min-height: 540px;
-                background: white;
-                padding: 40px;
-                font-family: 'Segoe UI', Arial, sans-serif;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            ">
-                <h2 style="color: #c2185b; margin-bottom: 30px;">Slide {idx + 1}</h2>
-                <div style="font-size: 18px; line-height: 1.6;">
-            """
-            
-            # Extract text from shapes
+        slides_content = []
+        for idx, slide in enumerate(prs.slides, 1):
+            slide_text = []
             for shape in slide.shapes:
                 if hasattr(shape, "text") and shape.text.strip():
-                    slide_html += f"<p>{shape.text}</p>"
-            
-            slide_html += """
-                </div>
-            </div>
-            """
-            images.append(slide_html)
-        
-        return images
+                    slide_text.append(shape.text)
+            slides_content.append({
+                "number": idx,
+                "text": "\n".join(slide_text) if slide_text else "[Slide content]"
+            })
+        return slides_content
     except Exception as e:
         return None
 
-# Display presentation with images
+# Display presentation with navigation
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
-    # Header with back button
-    col1, col2, col3 = st.columns([1, 3, 1])
-    with col1:
-        if st.button("◀ Back to Courses", use_container_width=True):
-            st.session_state['viewing_course'] = None
-            st.rerun()
+    # Back button
+    if st.button("◀ Back to Courses", use_container_width=False):
+        st.session_state['viewing_course'] = None
+        st.rerun()
     
-    with col2:
-        st.markdown(f"""
-            <div style="text-align: center;">
-                <h2>📖 {course['title']}</h2>
-                <p style="color: #c2185b;">Level {course['level']} | {course['upload_date']}</p>
-            </div>
-        """, unsafe_allow_html=True)
+    # Title
+    st.markdown(f"""
+        <div style="text-align: center;">
+            <h2>📖 {course['title']}</h2>
+            <p style="color: #c2185b;">Level {course['level']} | {course['upload_date']}</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Offer download and open in PowerPoint option for full quality
-    st.info("""
-        💡 **For best quality with images and colors:**
-        - Download the PowerPoint file below
-        - Open with PowerPoint, Google Slides, or LibreOffice
-        - Use **F11** for fullscreen presentation
-    """)
+    # Extract slides
+    slides = extract_slides_text(course["path"])
     
-    # Download button for the original PPT
-    with open(course["path"], "rb") as f:
-        st.download_button(
-            label="📥 Download PowerPoint (Full Quality)",
-            data=f,
-            file_name=course["filename"],
-            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            use_container_width=True
-        )
-    
-    st.markdown("---")
-    
-    # Try to extract and display slide content
-    try:
-        from pptx import Presentation
-        prs = Presentation(course["path"])
-        
+    if slides:
+        # Initialize slide index
         if 'slide_index' not in st.session_state:
             st.session_state.slide_index = 0
         
-        # Navigation
-        col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+        # === BIG NAVIGATION BUTTONS ===
+        col1, col2, col3 = st.columns([1, 2, 1])
         
         with col1:
-            if st.button("◀ Previous", use_container_width=True):
+            # Previous button
+            prev_clicked = st.button("◀◀ PREVIOUS SLIDE", use_container_width=True)
+            if prev_clicked:
                 if st.session_state.slide_index > 0:
                     st.session_state.slide_index -= 1
                     st.rerun()
         
         with col2:
-            total_slides = len(prs.slides)
-            st.write(f"**Slide {st.session_state.slide_index + 1}** of {total_slides}")
-        
-        with col3:
-            progress = (st.session_state.slide_index + 1) / total_slides
+            # Slide counter and progress
+            st.markdown(f"""
+                <div style="text-align: center;">
+                    <h3 style="color: #ff69b4;">Slide {st.session_state.slide_index + 1} of {len(slides)}</h3>
+                </div>
+            """, unsafe_allow_html=True)
+            progress = (st.session_state.slide_index + 1) / len(slides)
             st.progress(progress)
         
-        with col4:
+        with col3:
+            # Next button
+            next_clicked = st.button("NEXT SLIDE ▶▶", use_container_width=True)
+            if next_clicked:
+                if st.session_state.slide_index < len(slides) - 1:
+                    st.session_state.slide_index += 1
+                    st.rerun()
+        
+        # Fullscreen button
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
             st.markdown("""
-                <a href="#" onclick="document.documentElement.requestFullscreen(); return false;">
-                    <button style="width:100%; background: linear-gradient(45deg, #ff69b4, #ff1493); color:white; border:none; padding:10px; border-radius:25px; cursor:pointer;">
-                        🖥️ Fullscreen (F11)
+                <div style="text-align: center;">
+                    <button onclick="document.documentElement.requestFullscreen()" style="
+                        background: linear-gradient(45deg, #ff69b4, #ff1493);
+                        color: white;
+                        border: none;
+                        border-radius: 25px;
+                        padding: 12px 30px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        font-size: 16px;
+                        margin: 10px 0;
+                    ">
+                        🖥️ FULLSCREEN MODE
                     </button>
-                </a>
+                </div>
             """, unsafe_allow_html=True)
         
-        # Display current slide content
-        slides_list = list(prs.slides)
-        current_slide = slides_list[st.session_state.slide_index]
+        st.markdown("---")
         
-        # Build slide content
-        slide_content = []
-        for shape in current_slide.shapes:
-            if hasattr(shape, "text") and shape.text.strip():
-                slide_content.append(shape.text)
+        # Display current slide
+        current_slide = slides[st.session_state.slide_index]
         
         st.markdown(f"""
             <div class="slide-container">
-                <h3 style="color: #ff69b4; text-align: center; margin-bottom: 30px;">Slide {st.session_state.slide_index + 1}</h3>
-                <div style="font-size: 24px; line-height: 1.6; text-align: left;">
-                    {'<br><br>'.join(slide_content) if slide_content else '<p style="text-align:center;">📊 Slide content - Download PowerPoint to see full formatting, images and colors!</p>'}
+                <h3 style="color: #ff69b4; text-align: center; margin-bottom: 30px;">
+                    📄 Slide {current_slide['number']}
+                </h3>
+                <div style="font-size: 22px; line-height: 1.6;">
+                    {current_slide['text'].replace(chr(10), '<br><br>')}
                 </div>
             </div>
         """, unsafe_allow_html=True)
         
-        st.caption("💡 **Tip:** Download the PowerPoint file above and open in PowerPoint/Google Slides to see all images, colors, and formatting!")
+        # Keyboard shortcuts hint
+        st.info("💡 **Keyboard shortcuts:** Press **←** (left arrow) for previous slide, **→** (right arrow) for next slide")
         
-    except Exception as e:
-        st.error(f"Error displaying slide: {e}")
-        st.info("📥 Please download the PowerPoint file to view the complete presentation with images and colors.")
+        # Download option
+        st.markdown("---")
+        with open(course["path"], "rb") as f:
+            st.download_button(
+                label="📥 Download PowerPoint File",
+                data=f,
+                file_name=course["filename"],
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                use_container_width=True
+            )
+    
+    else:
+        st.error("❌ Unable to read PowerPoint file.")
+        with open(course["path"], "rb") as f:
+            st.download_button(
+                label="📥 Download PowerPoint",
+                data=f,
+                file_name=course["filename"],
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            )
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -365,6 +256,7 @@ def main():
     if 'viewing_course' not in st.session_state:
         st.session_state.viewing_course = None
     
+    # Title
     st.markdown("""
         <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
             <h1>🌸 English Teacher's Platform 🌸</h1>
@@ -373,11 +265,12 @@ def main():
     """, unsafe_allow_html=True)
     
     st.markdown("""
-        <div style="text-align: center; margin-bottom: 20px;" class="heart">
+        <div style="text-align: center; margin-bottom: 20px; font-size: 30px;">
             📖 📝 🎓 ✏️ 📕
         </div>
     """, unsafe_allow_html=True)
     
+    # Sidebar
     with st.sidebar:
         st.markdown("""
             <div style="text-align: center; padding: 20px 0;">
@@ -566,7 +459,7 @@ def student_mode(metadata):
                             key=f"student_download_{key}"
                         )
                 
-                if st.button(f"💡 Get a tip for this course", key=f"tip_{key}"):
+                if st.button(f"💡 Get a tip", key=f"tip_{key}"):
                     tips = [
                         "✨ Take notes while watching!",
                         "💕 Practice with a friend!",
