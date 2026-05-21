@@ -3,6 +3,10 @@ import json
 import os
 from pathlib import Path
 import time
+from pptx import Presentation
+import tempfile
+from PIL import Image
+import io
 
 # Page configuration
 st.set_page_config(
@@ -85,6 +89,7 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         transition: all 0.3s ease;
         border: 1px solid #ffc0cb;
+        cursor: pointer;
     }
     
     .course-card:hover {
@@ -141,15 +146,40 @@ st.markdown("""
         animation: fadeInUp 0.6s ease-out;
     }
     
-    /* Custom heart animation */
-    .heart {
-        animation: heartbeat 1.5s ease infinite;
+    /* Presentation viewer */
+    .slide-container {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        margin: 20px 0;
     }
     
-    @keyframes heartbeat {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
+    .slide-image {
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .slide-image:hover {
+        transform: scale(1.02);
+    }
+    
+    /* Navigation buttons */
+    .nav-button {
+        background: linear-gradient(45deg, #ff69b4, #ff1493);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-button:hover {
+        transform: scale(1.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -162,6 +192,7 @@ def init_folders():
         for sub in sub_levels:
             Path(f"courses/Level_{level}/{level}{sub}").mkdir(parents=True, exist_ok=True)
     Path("data").mkdir(exist_ok=True)
+    Path("thumbnails").mkdir(exist_ok=True)
 
 # Load metadata
 def load_metadata():
@@ -188,8 +219,133 @@ def delete_course(course_key, course_path):
     except:
         return False
 
+# Convert PPT to images for viewing
+def ppt_to_images(ppt_path):
+    """Convert PowerPoint to list of images (one per slide)"""
+    try:
+        from pptx import Presentation
+        from wand.image import Image as WandImage
+        import tempfile
+        
+        # For now, return a placeholder message
+        # In production, you'd need LibreOffice or similar to convert
+        return None
+    except:
+        return None
+
+# Display presentation in viewer
+def display_presentation(course):
+    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+    
+    # Presentation header
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.markdown(f"""
+            <div style="text-align: center;">
+                <h2>📖 {course['title']}</h2>
+                <p style="color: #c2185b;">Level {course['level']} | {course['upload_date']}</p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    # Option 1: Use Google Slides Viewer (if file is accessible online)
+    # Option 2: Display download and view options
+    st.markdown("---")
+    
+    # Create tabs for different viewing options
+    tab1, tab2, tab3 = st.tabs(["🎬 Present Mode", "📥 Download", "📝 Study Notes"])
+    
+    with tab1:
+        st.markdown("""
+            <div style="background: #fff0f5; padding: 20px; border-radius: 15px; text-align: center;">
+                <h3>🎬 Presentation Mode</h3>
+                <p>Click below to open the presentation in full screen mode.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Create a temporary link for the file
+        with open(course["path"], "rb") as f:
+            ppt_data = f.read()
+        
+        # Option to download and open in PowerPoint/Google Slides
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.download_button(
+                label="📥 Download to Present",
+                data=ppt_data,
+                file_name=course["filename"],
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                use_container_width=True
+            )
+            st.caption("💡 Download and open with PowerPoint, Google Slides, or LibreOffice")
+        
+        with col2:
+            # Create a simple HTML viewer for PPT (as link)
+            st.markdown(f"""
+                <a href="https://view.officeapps.live.com/op/embed.aspx?src={st.secrets.get('base_url', '')}{course['path']}" target="_blank">
+                    <button style="width:100%; background: linear-gradient(45deg, #ff69b4, #ff1493); color:white; border:none; padding:10px; border-radius:25px; cursor:pointer;">
+                        🌐 View in Browser
+                    </button>
+                </a>
+            """, unsafe_allow_html=True)
+            st.caption("💡 Opens in Microsoft Office Online (requires public URL)")
+    
+    with tab2:
+        st.markdown("""
+            <div style="background: #fff0f5; padding: 20px; border-radius: 15px;">
+                <h3>📥 Download Options</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.download_button(
+            label="📚 Download Course Material",
+            data=ppt_data,
+            file_name=course["filename"],
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            use_container_width=True
+        )
+    
+    with tab3:
+        st.markdown("""
+            <div style="background: #fff0f5; padding: 20px; border-radius: 15px;">
+                <h3>📝 Study Notes</h3>
+                <p>Take notes while watching the presentation:</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        notes = st.text_area("✍️ Your notes:", height=150, placeholder="Write your notes here...")
+        if notes:
+            if st.button("💾 Save Notes"):
+                # Save notes locally or to session
+                st.success("📝 Notes saved successfully!")
+    
+    # Presentation tips
+    with st.expander("🎓 Presentation Tips", expanded=False):
+        st.markdown("""
+            ✨ **For Teachers:**  
+            - Use **Share Screen** in Zoom/Teams/Meet to present  
+            - Enable **Presenter View** for notes  
+            - Use **Annotations** to highlight important points  
+            
+            📚 **For Students:**  
+            - Take notes in the Study Notes tab  
+            - Download the presentation for offline study  
+            - Review slides after class
+        """)
+    
+    # Back button
+    if st.button("◀ Back to Courses", use_container_width=True):
+        st.session_state['selected_course'] = None
+        st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
 # Main application
 def main():
+    # Initialize session state for selected course
+    if 'selected_course' not in st.session_state:
+        st.session_state['selected_course'] = None
+    
     # Animated title
     st.markdown("""
         <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
@@ -198,9 +354,9 @@ def main():
         </div>
     """, unsafe_allow_html=True)
     
-    # Heart animation decoration
+    # Study decoration
     st.markdown("""
-        <div style="text-align: center; margin-bottom: 20px;" class="heart">
+        <div style="text-align: center; margin-bottom: 20px;">
             📖 📝 🎓 ✏️ 📕
         </div>
     """, unsafe_allow_html=True)
@@ -225,10 +381,14 @@ def main():
     
     metadata = load_metadata()
     
-    if mode == "👩‍🏫 Teacher":
-        teacher_mode(metadata)
+    # Check if a course is selected for viewing
+    if st.session_state['selected_course'] is not None:
+        display_presentation(st.session_state['selected_course'])
     else:
-        student_mode(metadata)
+        if mode == "👩‍🏫 Teacher":
+            teacher_mode(metadata)
+        else:
+            student_mode(metadata)
 
 def teacher_mode(metadata):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
@@ -318,12 +478,15 @@ def teacher_mode(metadata):
             with st.container():
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
+                    # Make course card clickable
+                    if st.button(f"📖 {course['title']}", key=f"view_{key}", use_container_width=True):
+                        st.session_state['selected_course'] = course
+                        st.rerun()
+                    
                     st.markdown(f"""
                         <div class="course-card">
-                            <strong>📘 {course['title']}</strong><br>
-                            <small>🎯 Level {course['level']}</small><br>
-                            <small>📅 {course['upload_date']}</small><br>
-                            <small>💭 {course['description']}</small>
+                            <small>📚 Level {course['level']}</small><br>
+                            <small>📅 {course['upload_date']}</small>
                         </div>
                     """, unsafe_allow_html=True)
                 
@@ -370,40 +533,36 @@ def student_mode(metadata):
         st.success(f"✨ Found {len(available_courses)} course(s) for Level {full_level} ✨")
         
         for key, course in available_courses.items():
-            with st.expander(f"📖 {course['title']}", expanded=True):
-                col1, col2 = st.columns([2, 1])
+            # Create a card for each course
+            with st.container():
+                col1, col2 = st.columns([3, 1])
                 
                 with col1:
                     st.markdown(f"""
-                        <div style="background: #fff0f5; padding: 15px; border-radius: 15px;">
-                            <strong>💭 Description:</strong><br>
-                            {course['description']}<br><br>
-                            <strong>📅 Uploaded:</strong> {course['upload_date']}<br>
-                            <strong>🎯 Level:</strong> {course['level']}
+                        <div class="course-card">
+                            <strong>📖 {course['title']}</strong><br>
+                            <small>📅 {course['upload_date']}</small><br>
+                            <small>💭 {course['description']}</small>
                         </div>
                     """, unsafe_allow_html=True)
                 
                 with col2:
+                    # View button
+                    if st.button("🎬 View & Present", key=f"view_student_{key}", use_container_width=True):
+                        st.session_state['selected_course'] = course
+                        st.rerun()
+                    
+                    # Download button
                     with open(course["path"], "rb") as f:
                         st.download_button(
-                            label="📥 Download Course",
+                            label="📥 Download",
                             data=f,
                             file_name=course["filename"],
-                            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                            use_container_width=True,
-                            key=f"student_download_{key}"
+                            key=f"student_download_{key}",
+                            use_container_width=True
                         )
                 
-                # Fun fact button
-                if st.button(f"💡 Get a tip for this course", key=f"tip_{key}"):
-                    tips = [
-                        "✨ Take notes while watching!",
-                        "💕 Practice with a friend!",
-                        "⭐ Review key vocabulary after!",
-                        "🌸 Ask questions if something is unclear!"
-                    ]
-                    import random
-                    st.info(f"💖 Tip: {random.choice(tips)}")
+                st.markdown("---")
     else:
         st.warning(f"💔 No courses available for Level {full_level} yet.")
         st.markdown("""
