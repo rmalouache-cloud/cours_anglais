@@ -3,9 +3,9 @@ import json
 import os
 from pathlib import Path
 import time
+import base64
 from PIL import Image
 import io
-import base64
 
 # Page configuration
 st.set_page_config(
@@ -61,26 +61,38 @@ st.markdown("""
         animation: fadeInUp 0.6s ease-out;
     }
     
-    /* PPT content styles */
-    .ppt-slide {
+    .slide-content {
         font-family: 'Segoe UI', Arial, sans-serif;
+        line-height: 1.6;
     }
-    .ppt-slide table {
+    
+    .slide-content table {
         border-collapse: collapse;
         width: 100%;
         margin: 15px 0;
     }
-    .ppt-slide th, .ppt-slide td {
+    
+    .slide-content td, .slide-content th {
         border: 1px solid #ddd;
         padding: 8px;
-        text-align: left;
     }
-    .ppt-slide img {
+    
+    .slide-content img {
         max-width: 100%;
         border-radius: 10px;
         margin: 10px 0;
     }
 </style>
+
+<script>
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    }
+</script>
 """, unsafe_allow_html=True)
 
 # Initialize folders
@@ -90,7 +102,6 @@ def init_folders():
     for level in levels:
         for sub in sub_levels:
             Path(f"courses/Level_{level}/{level}{sub}").mkdir(parents=True, exist_ok=True)
-            Path(f"courses/Level_{level}/{level}{sub}/images").mkdir(parents=True, exist_ok=True)
     Path("data").mkdir(exist_ok=True)
 
 # Load metadata
@@ -106,13 +117,10 @@ def save_metadata(metadata):
         json.dump(metadata, f, indent=4)
 
 # Delete course
-def delete_course(course_key, course_path, images_folder):
+def delete_course(course_key, course_path):
     try:
         if os.path.exists(course_path):
             os.remove(course_path)
-        if os.path.exists(images_folder):
-            import shutil
-            shutil.rmtree(images_folder)
         metadata = load_metadata()
         if course_key in metadata:
             del metadata[course_key]
@@ -121,80 +129,78 @@ def delete_course(course_key, course_path, images_folder):
     except:
         return False
 
-# Convert PPT to HTML with images
-def convert_ppt_to_html_slides(ppt_path):
-    """Convert PPT to HTML slides with text and images"""
+# Extract all text from PPT
+def extract_ppt_content(ppt_path):
+    """Extract all content from PPT (text, images, tables)"""
     try:
         from pptx import Presentation
         import html
         
         prs = Presentation(ppt_path)
-        slides_html = []
+        slides_content = []
         
-        for idx, slide in enumerate(prs.slides):
-            html_content = f"""
-            <div class="ppt-slide" style="
-                width: 100%;
-                min-height: 500px;
+        for slide_idx, slide in enumerate(prs.slides):
+            slide_html = f"""
+            <div style="
                 background: white;
                 border-radius: 15px;
                 padding: 40px;
-                font-family: 'Segoe UI', Arial, sans-serif;
+                min-height: 500px;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             ">
                 <div style="border-bottom: 3px solid #ff69b4; margin-bottom: 20px; padding-bottom: 10px;">
-                    <span style="color: #ff69b4; font-size: 14px;">Slide {idx + 1}</span>
+                    <span style="color: #ff69b4; font-size: 14px;">Slide {slide_idx + 1}</span>
                 </div>
-                <div style="font-size: 18px; line-height: 1.6;">
+                <div class="slide-content">
             """
             
             # Extract text from shapes
             for shape in slide.shapes:
-                # Handle text
+                # Text content
                 if shape.has_text_frame:
                     for paragraph in shape.text_frame.paragraphs:
-                        para_html = '<p style="margin: 10px 0;">'
+                        para_text = ""
                         for run in paragraph.runs:
-                            text = html.escape(run.text)
-                            if text.strip():
-                                para_html += text
-                        para_html += '</p>'
-                        html_content += para_html
+                            para_text += html.escape(run.text)
+                        if para_text.strip():
+                            # Check if it's a title (large text or first shape)
+                            if slide_idx == 0 and shape == slide.shapes[0]:
+                                slide_html += f"<h2 style='color: #ff69b4;'>{para_text}</h2>"
+                            else:
+                                slide_html += f"<p style='margin: 10px 0;'>{para_text}</p>"
                 
-                # Handle images
+                # Images
                 try:
                     if shape.shape_type == 13:  # Picture
                         image = shape.image
-                        image_bytes = image.blob
-                        img_base64 = base64.b64encode(image_bytes).decode('utf-8')
-                        img_ext = image.ext
-                        html_content += f'''
+                        img_base64 = base64.b64encode(image.blob).decode('utf-8')
+                        slide_html += f"""
                             <div style="text-align: center; margin: 15px 0;">
-                                <img src="data:image/{img_ext};base64,{img_base64}" 
-                                     style="max-width: 100%; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <img src="data:image/{image.ext};base64,{img_base64}" 
+                                     style="max-width: 100%; border-radius: 10px;">
                             </div>
-                        '''
+                        """
                 except:
                     pass
                 
-                # Handle tables
+                # Tables
                 if shape.has_table:
                     table = shape.table
-                    html_content += '<table style="border-collapse: collapse; width: 100%; margin: 15px 0; border: 1px solid #ddd;">'
+                    slide_html += '<table style="width: 100%; border-collapse: collapse;">'
                     for row in table.rows:
-                        html_content += '<tr>'
+                        slide_html += '<tr>'
                         for cell in row.cells:
-                            html_content += f'<td style="border: 1px solid #ddd; padding: 8px;">{html.escape(cell.text)}</td>'
-                        html_content += '</tr>'
-                    html_content += '</table>'
+                            slide_html += f'<td style="border: 1px solid #ddd; padding: 8px;">{html.escape(cell.text)}</td>'
+                        slide_html += '</tr>'
+                    slide_html += '</table>'
             
-            html_content += """
+            slide_html += """
                 </div>
             </div>
             """
-            slides_html.append(html_content)
+            slides_content.append(slide_html)
         
-        return slides_html
+        return slides_content
     except Exception as e:
         st.error(f"Error: {str(e)}")
         return None
@@ -203,91 +209,77 @@ def convert_ppt_to_html_slides(ppt_path):
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
-    # Back button
-    col_back, col_empty = st.columns([1, 5])
-    with col_back:
-        if st.button("◀ Back", use_container_width=False):
+    # Navigation bar
+    col1, col2, col3, col4 = st.columns([1, 2, 1, 1])
+    
+    with col1:
+        if st.button("◀ Back", use_container_width=True):
             st.session_state['viewing_course'] = None
             st.rerun()
     
-    # Title
-    st.markdown(f"""
-        <div style="text-align: center;">
-            <h2>📖 {course['title']}</h2>
-            <p style="color: #c2185b;">Level {course['level']} | {course['upload_date']}</p>
-        </div>
-    """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"<h3 style='text-align: center;'>{course['title']}</h3>", unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"<p style='text-align: center;'>Level {course['level']}</p>", unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown("""
+            <button onclick="toggleFullscreen()" style="
+                background: linear-gradient(45deg, #ff69b4, #ff1493);
+                color: white;
+                border: none;
+                border-radius: 25px;
+                padding: 8px 16px;
+                font-weight: bold;
+                cursor: pointer;
+                width: 100%;
+            ">
+                🖥️ FULLSCREEN
+            </button>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    slides_html = convert_ppt_to_html_slides(course["path"])
+    # Extract PPT content
+    slides = extract_ppt_content(course["path"])
     
-    if slides_html:
+    if slides:
         # Initialize slide index
         if 'slide_index' not in st.session_state:
             st.session_state.slide_index = 0
         
-        # Navigation
-        col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
+        # Slide navigation
+        nav_col1, nav_col2, nav_col3 = st.columns([1, 3, 1])
         
-        with col1:
-            if st.button("◀ PREV", use_container_width=True):
+        with nav_col1:
+            if st.button("◀◀ PREVIOUS", use_container_width=True):
                 if st.session_state.slide_index > 0:
                     st.session_state.slide_index -= 1
                     st.rerun()
         
-        with col2:
-            st.markdown(f"<p style='text-align: center;'>Slide {st.session_state.slide_index + 1} / {len(slides_html)}</p>", unsafe_allow_html=True)
-            progress = (st.session_state.slide_index + 1) / len(slides_html)
+        with nav_col2:
+            st.markdown(f"<p style='text-align: center; font-size: 18px;'>Slide {st.session_state.slide_index + 1} of {len(slides)}</p>", unsafe_allow_html=True)
+            progress = (st.session_state.slide_index + 1) / len(slides)
             st.progress(progress)
         
-        with col3:
-            if st.button("NEXT ▶", use_container_width=True):
-                if st.session_state.slide_index < len(slides_html) - 1:
+        with nav_col3:
+            if st.button("NEXT ▶▶", use_container_width=True):
+                if st.session_state.slide_index < len(slides) - 1:
                     st.session_state.slide_index += 1
                     st.rerun()
         
-        with col4:
-            # Fullscreen button with working JavaScript
-            st.markdown("""
-                <button onclick="
-                    var elem = document.documentElement;
-                    if (elem.requestFullscreen) {
-                        elem.requestFullscreen();
-                    } else if (elem.webkitRequestFullscreen) {
-                        elem.webkitRequestFullscreen();
-                    } else if (elem.msRequestFullscreen) {
-                        elem.msRequestFullscreen();
-                    }
-                " style="
-                    background: linear-gradient(45deg, #ff69b4, #ff1493);
-                    color: white;
-                    border: none;
-                    border-radius: 25px;
-                    padding: 8px 16px;
-                    font-weight: bold;
-                    cursor: pointer;
-                    width: 100%;
-                ">
-                    🖥️ FULL
-                </button>
-            """, unsafe_allow_html=True)
-        
         st.markdown("---")
-        st.markdown(slides_html[st.session_state.slide_index], unsafe_allow_html=True)
-        st.caption("💡 Tip: Use ◀ and ▶ buttons to navigate | Click FULL for fullscreen")
         
-        # Download
-        with st.expander("📥 Download PowerPoint", expanded=False):
-            with open(course["path"], "rb") as f:
-                st.download_button(
-                    label="Download PPT File",
-                    data=f,
-                    file_name=course["filename"],
-                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                )
+        # Display current slide
+        st.markdown(slides[st.session_state.slide_index], unsafe_allow_html=True)
+        
+        # Keyboard navigation hint
+        st.info("💡 **Tip:** Click FULLSCREEN button and use ◀ ▶ buttons to navigate")
+        
     else:
-        st.error("❌ Cannot display this PowerPoint.")
+        st.error("❌ Cannot display PowerPoint. Please check the file format.")
+        # Fallback: download button
         with open(course["path"], "rb") as f:
             st.download_button(
                 label="📥 Download PowerPoint",
@@ -439,19 +431,19 @@ def teacher_mode(metadata):
                         st.rerun()
                 
                 with col2:
-                    with open(course["path"], "rb") as f:
-                        st.download_button(
-                            label="📥 Download",
-                            data=f,
-                            file_name=course["filename"],
-                            key=f"down_{key}"
-                        )
+                    if st.button(f"📥 Download", key=f"down_{key}"):
+                        with open(course["path"], "rb") as f:
+                            st.download_button(
+                                label="Click",
+                                data=f,
+                                file_name=course["filename"],
+                                key=f"down_btn_{key}",
+                                hidden=True
+                            )
                 
                 with col3:
                     if st.button(f"🗑️ Delete", key=f"del_{key}"):
-                        course_folder = Path(course["path"]).parent
-                        images_folder = course_folder / "images"
-                        if delete_course(key, course["path"], images_folder):
+                        if delete_course(key, course["path"]):
                             st.warning(f"Course deleted")
                             time.sleep(0.5)
                             st.rerun()
@@ -497,32 +489,12 @@ def student_mode(metadata):
                         st.rerun()
                 
                 with col2:
-                    with open(course["path"], "rb") as f:
-                        st.download_button(
-                            label="📥 Download",
-                            data=f,
-                            file_name=course["filename"],
-                            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                            use_container_width=True,
-                            key=f"student_download_{key}"
-                        )
-                
-                if st.button(f"💡 Tip", key=f"tip_{key}"):
-                    tips = [
-                        "✨ Take notes while watching!",
-                        "💕 Practice with a friend!",
-                        "⭐ Review key vocabulary after!"
-                    ]
-                    import random
-                    st.info(f"💖 {random.choice(tips)}")
+                    if st.button(f"💡 Tip", key=f"tip_{key}"):
+                        tips = ["✨ Take notes!", "💕 Practice daily!", "⭐ Review vocabulary!"]
+                        import random
+                        st.info(random.choice(tips))
     else:
         st.warning(f"💔 No courses available for Level {full_level} yet.")
-        st.markdown("""
-            <div style="text-align: center; padding: 40px;">
-                <div style="font-size: 50px;">📚✨</div>
-                <p style="color: #c2185b;">Ask your teacher to upload courses!</p>
-            </div>
-        """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
