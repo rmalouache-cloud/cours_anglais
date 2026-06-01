@@ -1,312 +1,510 @@
 import streamlit as st
-import os
 import json
-from datetime import datetime
+import os
 from pathlib import Path
-import base64
+import time
+from PIL import Image
+import io
 
 # Page configuration
 st.set_page_config(
-    page_title="English Course Platform",
-    page_icon="📚",
+    page_title="✨ English Teacher's Platform ✨",
+    page_icon="🌸",
     layout="wide"
 )
 
-# Create necessary folders
-BASE_DIR = Path(__file__).parent
-DATA_FILE = BASE_DIR / "data" / "cours_metadata.json"
+# Custom CSS
+st.markdown("""
+<style>
+    .stApp {
+        background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 100%);
+    }
+    
+    h1, h2, h3 {
+        color: #c2185b !important;
+    }
+    
+    .stButton > button {
+        background: linear-gradient(45deg, #ff69b4, #ff1493);
+        color: white;
+        border-radius: 25px;
+        border: none;
+        padding: 12px 25px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        transform: scale(1.05);
+    }
+    
+    .course-card {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin: 10px 0;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: 1px solid #ffc0cb;
+    }
+    
+    .course-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .slide-image {
+        width: 100%;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        margin: 10px 0;
+    }
+    
+    .slide-container {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin: 20px 0;
+        text-align: center;
+    }
+    
+    @keyframes fadeInUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .fade-in {
+        animation: fadeInUp 0.6s ease-out;
+    }
+    
+    /* Logo positioning */
+    .logo-container {
+        text-align: center;
+        margin-bottom: 10px;
+    }
+    
+    .header-emoji {
+        font-size: 35px;
+        text-align: center;
+        margin: 10px 0;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# Create data folder if it doesn't exist
-DATA_FILE.parent.mkdir(exist_ok=True)
+# Initialize folders
+def init_folders():
+    levels = ["A", "B", "C"]
+    sub_levels = ["1", "2", "3"]
+    for level in levels:
+        for sub in sub_levels:
+            Path(f"courses/Level_{level}/{level}{sub}").mkdir(parents=True, exist_ok=True)
+            Path(f"courses/Level_{level}/{level}{sub}/images").mkdir(parents=True, exist_ok=True)
+    Path("data").mkdir(exist_ok=True)
 
-# Level structure (each level has 3 sub-levels)
-LEVEL_STRUCTURE = {
-    "A": ["A1", "A2", "A3"],
-    "B": ["B1", "B2", "B3"],
-    "C": ["C1", "C2", "C3"]
-}
-
-# Function to load course metadata
+# Load metadata
 def load_metadata():
-    if DATA_FILE.exists():
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
+    if os.path.exists("data/courses_metadata.json"):
+        with open("data/courses_metadata.json", "r") as f:
             return json.load(f)
     return {}
 
-# Function to save metadata
+# Save metadata
 def save_metadata(metadata):
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(metadata, f, indent=2, ensure_ascii=False)
+    with open("data/courses_metadata.json", "w") as f:
+        json.dump(metadata, f, indent=4)
 
-# Initialize session state
-if 'cours_metadata' not in st.session_state:
-    st.session_state.cours_metadata = load_metadata()
+# Delete course
+def delete_course(course_key, course_path, images_folder):
+    try:
+        if os.path.exists(course_path):
+            os.remove(course_path)
+        # Delete images folder
+        if os.path.exists(images_folder):
+            import shutil
+            shutil.rmtree(images_folder)
+        metadata = load_metadata()
+        if course_key in metadata:
+            del metadata[course_key]
+            save_metadata(metadata)
+        return True
+    except:
+        return False
 
-# Function for level descriptions
-def get_level_description(letter, sub_level):
-    descriptions = {
-        "A": {"A1": "🔰 Beginner Complete", "A2": "📖 Elementary", "A3": "🗣️ Pre-Intermediate"},
-        "B": {"B1": "💬 Intermediate", "B2": "📝 Upper Intermediate", "B3": "🎯 Advanced Intermediate"},
-        "C": {"C1": "⚡ Advanced", "C2": "🎓 Proficiency", "C3": "🏆 Mastery"}
-    }
-    return descriptions.get(letter, {}).get(sub_level, "")
-
-# Title
-st.title("📚 English Course Platform")
-st.markdown("---")
-
-# Sidebar for navigation
-with st.sidebar:
-    st.header("🎯 Level Navigation")
-    
-    # Main level selection
-    main_level = st.radio(
-        "Choose your level",
-        ["A (Beginner)", "B (Intermediate)", "C (Advanced)"],
-        index=0,
-        horizontal=True
-    )
-    
-    letter = main_level[0]
-    sub_levels = LEVEL_STRUCTURE[letter]
-    
-    sub_level = st.selectbox(
-        f"Sub-level {letter}",
-        sub_levels,
-        format_func=lambda x: f"{x} - {get_level_description(letter, x)}"
-    )
-    
-    # Progress indicator
-    st.markdown("---")
-    level_index = sub_levels.index(sub_level) + 1
-    st.progress(level_index / len(sub_levels))
-    st.caption(f"Progress in level {letter}: {level_index}/3")
-    
-    st.markdown("---")
-    st.info("👩‍🏫 **Teacher Mode**: Add your PPT courses\n\n📖 **Course Mode**: Display and share")
-
-# Main area with 2 columns
-col1, col2 = st.columns([1, 2])
-
-# COLUMN 1: Course Management
-with col1:
-    st.subheader(f"📤 {sub_level} - Course Management")
-    st.caption(get_level_description(letter, sub_level))
-    
-    # Upload form
-    with st.expander("➕ Add New Course", expanded=True):
-        course_title = st.text_input("Course Title", placeholder="e.g., Lesson 1 - Present Simple")
+# Convert PPT to images using python-pptx (extract text with basic formatting)
+def convert_ppt_to_html_slides(ppt_path):
+    """Convert PPT to HTML slides that preserve formatting"""
+    try:
+        from pptx import Presentation
         
-        ppt_file = st.file_uploader(
-            "Choose a PowerPoint file (.ppt or .pptx)",
-            type=['ppt', 'pptx'],
+        prs = Presentation(ppt_path)
+        slides_html = []
+        
+        for idx, slide in enumerate(prs.slides):
+            html_content = f"""
+            <div style="
+                width: 100%;
+                min-height: 500px;
+                background: white;
+                border-radius: 15px;
+                padding: 40px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            ">
+                <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">
+                    📍 Slide {idx + 1}
+                </h2>
+                <div style="font-size: 20px; line-height: 1.6; margin-top: 20px;">
+            """
+            
+            # Extract text from shapes
+            for shape in slide.shapes:
+                if hasattr(shape, "text") and shape.text.strip():
+                    # Check if it's a title (usually first shape)
+                    if idx == 0 and shape == slide.shapes[0]:
+                        html_content += f"<h1 style='color: #ff69b4;'>{shape.text}</h1>"
+                    else:
+                        html_content += f"<p>📌 {shape.text}</p>"
+            
+            html_content += """
+                </div>
+            </div>
+            """
+            slides_html.append(html_content)
+        
+        return slides_html
+    except Exception as e:
+        return None
+
+# Display presentation
+def display_presentation(course):
+    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+    
+    # Back button
+    col_back, col_empty = st.columns([1, 5])
+    with col_back:
+        if st.button("◀ Back to Courses", use_container_width=False):
+            st.session_state['viewing_course'] = None
+            st.rerun()
+    
+    # Title
+    st.markdown(f"""
+        <div style="text-align: center;">
+            <h2>📖 {course['title']} 📖</h2>
+            <p style="color: #c2185b;">⭐ Level {course['level']} | {course['upload_date']} ⭐</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Check if we have HTML slides cached
+    slides_html = convert_ppt_to_html_slides(course["path"])
+    
+    if slides_html:
+        # Initialize slide index
+        if 'slide_index' not in st.session_state:
+            st.session_state.slide_index = 0
+        
+        # Navigation buttons
+        col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
+        
+        with col1:
+            if st.button("◀◀ PREVIOUS", use_container_width=True):
+                if st.session_state.slide_index > 0:
+                    st.session_state.slide_index -= 1
+                    st.rerun()
+        
+        with col2:
+            st.markdown(f"<h3 style='text-align: center;'>📄 {st.session_state.slide_index + 1} / {len(slides_html)}</h3>", unsafe_allow_html=True)
+        
+        with col3:
+            progress = (st.session_state.slide_index + 1) / len(slides_html)
+            st.progress(progress)
+        
+        with col4:
+            if st.button("NEXT ▶▶", use_container_width=True):
+                if st.session_state.slide_index < len(slides_html) - 1:
+                    st.session_state.slide_index += 1
+                    st.rerun()
+        
+        with col5:
+            # Fullscreen button
+            st.markdown("""
+                <button onclick="document.documentElement.requestFullscreen()" style="
+                    background: linear-gradient(45deg, #ff69b4, #ff1493);
+                    color: white;
+                    border: none;
+                    border-radius: 25px;
+                    padding: 10px 20px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    width: 100%;
+                ">
+                    🖥️ FULLSCREEN
+                </button>
+            """, unsafe_allow_html=True)
+        
+        # Display current slide
+        st.markdown("---")
+        st.markdown(slides_html[st.session_state.slide_index], unsafe_allow_html=True)
+        
+        # Navigation hint
+        st.info("💡 **Tip:** Use ← and → arrow keys on your keyboard to navigate slides")
+        
+        # Download option
+        with st.expander("📥 Download Original PowerPoint", expanded=False):
+            with open(course["path"], "rb") as f:
+                st.download_button(
+                    label="📎 Download PPT File",
+                    data=f,
+                    file_name=course["filename"],
+                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                )
+    
+    else:
+        st.error("❌ Cannot display this PowerPoint. Please make sure the file is valid.")
+        with open(course["path"], "rb") as f:
+            st.download_button(
+                label="📥 Download PowerPoint",
+                data=f,
+                file_name=course["filename"],
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            )
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Main application
+def main():
+    if 'viewing_course' not in st.session_state:
+        st.session_state.viewing_course = None
+    
+    # Logo/Header emojis
+    st.markdown('<div class="logo-container">🌸 📚 ✨ 🎓 💖</div>', unsafe_allow_html=True)
+    
+    # Title
+    st.markdown("""
+        <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
+            <h1>✨ English Teacher's Platform ✨</h1>
+            <p style="color: #c2185b; font-size: 18px;">💕 Make learning beautiful and fun! 💕</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="header-emoji">📖 📝 🎓 ✏️ 📕 💖 🌸</div>', unsafe_allow_html=True)
+    
+    # Sidebar
+    with st.sidebar:
+        st.markdown("""
+            <div style="text-align: center; padding: 20px 0;">
+                <div style="font-size: 50px;">👩‍🏫</div>
+                <h3 style="color: #ff69b4;">✨ Welcome! ✨</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        mode = st.radio(
+            "📌 Choose your role:",
+            ["👩‍🏫 Teacher", "👧 Student"],
+            index=0
+        )
+        
+        st.markdown("---")
+        st.markdown('<div style="text-align: center;">🌸 Made with love for English teachers 🌸</div>', unsafe_allow_html=True)
+    
+    metadata = load_metadata()
+    
+    if st.session_state.viewing_course is not None:
+        display_presentation(st.session_state.viewing_course)
+    else:
+        if mode == "👩‍🏫 Teacher":
+            teacher_mode(metadata)
+        else:
+            student_mode(metadata)
+
+def teacher_mode(metadata):
+    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.subheader("🌸 Upload New Course")
+        
+        level_col1, level_col2 = st.columns(2)
+        with level_col1:
+            level = st.selectbox("📚 Main Level", ["A", "B", "C"])
+        with level_col2:
+            sub_level = st.selectbox("🎯 Sub-level", ["1", "2", "3"])
+        
+        full_level = f"{level}{sub_level}"
+        
+        title = st.text_input("📖 Course Title", placeholder="e.g., Present Simple Tense")
+        description = st.text_area("💭 Description", placeholder="What will students learn?")
+        
+        uploaded_file = st.file_uploader(
+            "📎 Upload PPT/PPTX File", 
+            type=["ppt", "pptx"],
             help="Upload your PowerPoint presentation"
         )
         
-        description = st.text_area("Course Description", placeholder="Briefly describe the course content...", height=100)
-        
-        tags = st.text_input("Tags (comma separated)", placeholder="grammar, vocabulary, exercises, speaking")
-        
-        duration = st.number_input("Estimated Duration (minutes)", min_value=5, max_value=180, value=30, step=5)
-        
-        if st.button("💾 Save Course", type="primary", use_container_width=True):
-            if course_title and ppt_file:
-                # Convert file to base64 for storage in JSON
-                file_bytes = ppt_file.read()
-                file_base64 = base64.b64encode(file_bytes).decode('utf-8')
+        if st.button("💖 Save Course", use_container_width=True):
+            if title and uploaded_file:
+                # Create folder for this course
+                course_folder = Path(f"courses/Level_{level}/{level}{sub_level}")
+                course_folder.mkdir(parents=True, exist_ok=True)
                 
-                # Create metadata
-                course_info = {
-                    "id": f"{letter}_{sub_level}_{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                    "title": course_title,
-                    "file_base64": file_base64,
-                    "filename": ppt_file.name,
-                    "description": description,
-                    "tags": [tag.strip() for tag in tags.split(",")] if tags else [],
-                    "duration": duration,
-                    "date_added": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "type": "presentation",
-                    "level": f"{letter}{sub_level[1:]}"
+                # Save file
+                save_path = course_folder / uploaded_file.name
+                with open(save_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                
+                # Save metadata
+                course_key = f"{full_level}_{uploaded_file.name}"
+                metadata[course_key] = {
+                    "title": title,
+                    "description": description if description else "No description",
+                    "level": full_level,
+                    "path": str(save_path),
+                    "filename": uploaded_file.name,
+                    "upload_date": time.strftime("%Y-%m-%d %H:%M")
                 }
+                save_metadata(metadata)
                 
-                # Save to metadata
-                key = f"{letter}/{sub_level}"
-                if key not in st.session_state.cours_metadata:
-                    st.session_state.cours_metadata[key] = []
-                
-                st.session_state.cours_metadata[key].append(course_info)
-                save_metadata(st.session_state.cours_metadata)
-                
-                st.success(f"✅ Course '{course_title}' saved successfully!")
                 st.balloons()
+                st.success(f"✨ Course '{title}' saved successfully! ✨")
+                time.sleep(0.5)
                 st.rerun()
             else:
-                st.error("❌ Please fill in the title and select a PPT file")
+                st.error("💔 Please add a title and file!")
     
-    # List of existing courses
-    st.subheader("📋 Available Courses")
-    
-    key = f"{letter}/{sub_level}"
-    course_list = st.session_state.cours_metadata.get(key, [])
-    
-    if course_list:
-        st.caption(f"📊 {len(course_list)} course(s) available")
+    with col2:
+        st.subheader("📊 Quick Stats")
+        total_courses = len(metadata)
+        st.info(f"📚 **Total courses:** {total_courses}")
         
-        for i, course in enumerate(course_list):
+        if metadata:
+            levels_count = {}
+            for course in metadata.values():
+                level = course["level"]
+                levels_count[level] = levels_count.get(level, 0) + 1
+            
+            st.write("**📊 Courses per level:**")
+            for level, count in sorted(levels_count.items()):
+                st.progress(min(count/10, 1.0), text=f"Level {level}: {count} courses")
+    
+    st.markdown("---")
+    st.subheader("📚 Manage Your Courses")
+    
+    if metadata:
+        filter_level = st.selectbox("🔍 Filter by level:", ["All"] + sorted(set(c["level"] for c in metadata.values())))
+        
+        for key, course in metadata.items():
+            if filter_level != "All" and course["level"] != filter_level:
+                continue
+                
             with st.container():
-                col_a, col_b = st.columns([4, 1])
-                with col_a:
-                    st.markdown(f"**📌 {course['title']}**")
-                    st.caption(f"⏱️ {course['duration']} min | 📅 {course['date_added'].split()[0]}")
-                    if course.get('tags'):
-                        st.caption(f"🏷️ {', '.join(course['tags'][:3])}")
-                with col_b:
-                    if st.button("🗑️", key=f"del_{letter}_{sub_level}_{i}", help="Delete this course"):
-                        st.session_state.cours_metadata[key].pop(i)
-                        save_metadata(st.session_state.cours_metadata)
-                        st.rerun()
-                st.divider()
-    else:
-        st.info("📭 No courses for this level")
-        st.caption("👆 Click 'Add New Course' to get started")
-
-# COLUMN 2: Course Display
-with col2:
-    st.subheader(f"📖 {sub_level} - Course Display")
-    st.caption("Screen sharing mode - Enable presentation mode below")
-    
-    presentation_mode = st.toggle("🎬 Presentation Mode (optimized for screen sharing)", value=False)
-    
-    if course_list:
-        course_titles = [c["title"] for c in course_list]
-        
-        # Search if many courses
-        if len(course_list) > 5:
-            search = st.text_input("🔍 Search courses", placeholder="Title or tags...")
-            if search:
-                course_titles = [c["title"] for c in course_list 
-                              if search.lower() in c["title"].lower() 
-                              or any(search.lower() in tag.lower() for tag in c.get("tags", []))]
-        
-        selected_course_title = st.selectbox("Choose a course to display", course_titles)
-        current_course = next((c for c in course_list if c["title"] == selected_course_title), None)
-        
-        if current_course:
-            if presentation_mode:
-                # Presentation mode
-                st.markdown("""
-                <style>
-                .presentation-container {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    padding: 2rem;
-                    border-radius: 15px;
-                    color: white;
-                }
-                .presentation-content {
-                    background-color: white;
-                    padding: 2rem;
-                    border-radius: 10px;
-                    color: #333;
-                    margin-top: 1rem;
-                }
-                .course-title {
-                    color: white;
-                    text-align: center;
-                    font-size: 2rem;
-                    margin-bottom: 0.5rem;
-                }
-                .course-info {
-                    text-align: center;
-                    color: rgba(255,255,255,0.9);
-                    margin-bottom: 1rem;
-                }
-                </style>
-                """, unsafe_allow_html=True)
-                
-                st.markdown(f"""
-                <div class="presentation-container">
-                    <h1 class="course-title">{current_course['title']}</h1>
-                    <div class="course-info">
-                        {sub_level} • {current_course['duration']} min • Added on {current_course['date_added'].split()[0]}
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                if current_course.get('description'):
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
                     st.markdown(f"""
-                    <div style="background-color: rgba(255,255,255,0.2); padding: 1rem; border-radius: 10px; margin: 1rem 0;">
-                        📝 {current_course['description']}
-                    </div>
+                        <div class="course-card">
+                            <strong>📘 {course['title']}</strong><br>
+                            <small>🎯 Level {course['level']}</small><br>
+                            <small>📅 {course['upload_date']}</small><br>
+                            <small>💭 {course['description']}</small>
+                        </div>
                     """, unsafe_allow_html=True)
-                
-                st.markdown('<div class="presentation-content">', unsafe_allow_html=True)
-                
-                # Display the PPT (decoded from base64)
-                if current_course.get('file_base64'):
-                    st.info(f"📊 File: {current_course['filename']}")
                     
-                    # Download button
-                    file_bytes = base64.b64decode(current_course['file_base64'])
-                    st.download_button(
-                        label="📥 Download Presentation",
-                        data=file_bytes,
-                        file_name=current_course['filename'],
-                        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                        use_container_width=True
-                    )
-                    
-                    st.success("💡 **Screen Sharing Tips:**")
-                    st.caption("1. Download the PowerPoint file")
-                    st.caption("2. Open it with PowerPoint")
-                    st.caption("3. Start slideshow (press F5)")
-                    st.caption("4. Share your screen in your video conferencing tool")
-                    
-                st.markdown('</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                    if st.button(f"🎬 View & Present", key=f"view_{key}"):
+                        st.session_state.viewing_course = course
+                        st.rerun()
                 
-                st.info("💡 **Tip:** Press **F11** for full screen browser mode")
+                with col2:
+                    if st.button(f"📥 Download", key=f"down_{key}"):
+                        with open(course["path"], "rb") as f:
+                            st.download_button(
+                                label="📎 Click to download",
+                                data=f,
+                                file_name=course["filename"],
+                                key=f"down_btn_{key}",
+                                hidden=True
+                            )
                 
-            else:
-                # Normal mode
-                st.markdown(f"### 📄 {current_course['title']}")
-                
-                col_info1, col_info2, col_info3 = st.columns(3)
-                with col_info1:
-                    st.metric("Level", sub_level)
-                with col_info2:
-                    st.metric("Duration", f"{current_course['duration']} min")
-                with col_info3:
-                    st.metric("Added on", current_course['date_added'].split()[0])
-                
-                if current_course.get('description'):
-                    st.markdown("**Description:**")
-                    st.info(current_course['description'])
-                
-                if current_course.get('tags'):
-                    st.markdown("**Tags:**")
-                    st.markdown(", ".join([f"`{tag}`" for tag in current_course['tags']]))
-                
-                st.markdown("---")
-                
-                # Download link
-                if current_course.get('file_base64'):
-                    file_bytes = base64.b64decode(current_course['file_base64'])
-                    st.download_button(
-                        label="📥 Download Presentation",
-                        data=file_bytes,
-                        file_name=current_course['filename'],
-                        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                        use_container_width=True
-                    )
-                    
-                    st.success("💡 **To share your screen:**")
-                    st.caption("1. Download the PPT file")
-                    st.caption("2. Open with PowerPoint")
-                    st.caption("3. Start the slideshow (F5)")
-                    st.caption("4. Share your screen in your video call")
+                with col3:
+                    if st.button(f"🗑️ Delete", key=f"del_{key}"):
+                        course_folder = Path(course["path"]).parent
+                        images_folder = course_folder / "images"
+                        if delete_course(key, course["path"], images_folder):
+                            st.warning(f"💔 Course '{course['title']}' deleted")
+                            time.sleep(0.5)
+                            st.rerun()
     else:
-        st.info("👆 **No courses available**")
-        st.caption("Add your first course by uploading a PPT file in the left column")
+        st.info("🌸 No courses yet. Upload your first course above!")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# Footer
-st.markdown("---")
-st.caption(f"✨ English Course Platform - Levels A1→A3, B1→B3, C1→C3 | Courses are permanently saved")
+def student_mode(metadata):
+    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+    
+    st.subheader("🎓 Browse Your Courses")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        level = st.selectbox("📚 Select Main Level", ["A", "B", "C"])
+    with col2:
+        sub_level = st.selectbox("🎯 Select Sub-level", ["1", "2", "3"])
+    
+    full_level = f"{level}{sub_level}"
+    
+    available_courses = {k: v for k, v in metadata.items() if v["level"] == full_level}
+    
+    if available_courses:
+        st.success(f"✨ Found {len(available_courses)} course(s) for Level {full_level} ✨")
+        
+        for key, course in available_courses.items():
+            with st.expander(f"📖 {course['title']}", expanded=True):
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    st.markdown(f"""
+                        <div style="background: #fff0f5; padding: 15px; border-radius: 15px;">
+                            <strong>💭 Description:</strong><br>
+                            {course['description']}<br><br>
+                            <strong>📅 Uploaded:</strong> {course['upload_date']}<br>
+                            <strong>🎯 Level:</strong> {course['level']}
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button(f"🎬 View Course", key=f"view_student_{key}"):
+                        st.session_state.viewing_course = course
+                        st.rerun()
+                
+                with col2:
+                    with open(course["path"], "rb") as f:
+                        st.download_button(
+                            label="📥 Download Course",
+                            data=f,
+                            file_name=course["filename"],
+                            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                            use_container_width=True,
+                            key=f"student_download_{key}"
+                        )
+                
+                if st.button(f"💡 Get a tip", key=f"tip_{key}"):
+                    tips = [
+                        "✨ Take notes while watching!",
+                        "💕 Practice with a friend!",
+                        "⭐ Review key vocabulary after!",
+                        "🌸 Ask questions if something is unclear!",
+                        "📝 Write down new words!",
+                        "🎯 Repeat after the presentation!"
+                    ]
+                    import random
+                    st.info(f"💖 Tip: {random.choice(tips)}")
+    else:
+        st.warning(f"💔 No courses available for Level {full_level} yet.")
+        st.markdown("""
+            <div style="text-align: center; padding: 40px;">
+                <div style="font-size: 50px;">📚✨💕</div>
+                <p style="color: #c2185b;">🌸 Ask your teacher to upload courses for this level! 🌸</p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    init_folders()
+    main()
