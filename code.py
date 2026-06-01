@@ -76,19 +76,6 @@ st.markdown("""
         animation: fadeInUp 0.6s ease-out;
     }
     
-    /* Fullscreen styles */
-    .fullscreen-mode {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: white;
-        z-index: 9999;
-        overflow-y: auto;
-        padding: 40px;
-    }
-    
     /* PPT content styles */
     .ppt-slide {
         font-family: 'Segoe UI', Arial, sans-serif;
@@ -119,7 +106,6 @@ st.markdown("""
 </style>
 
 <script>
-    // Fullscreen function that works
     function toggleFullscreen() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen();
@@ -127,13 +113,6 @@ st.markdown("""
             document.exitFullscreen();
         }
     }
-    
-    // Add click event to fullscreen button
-    document.addEventListener('click', function(e) {
-        if (e.target.id === 'fullscreen-btn' || e.target.parentElement.id === 'fullscreen-btn') {
-            toggleFullscreen();
-        }
-    });
 </script>
 """, unsafe_allow_html=True)
 
@@ -164,7 +143,6 @@ def delete_course(course_key, course_path, images_folder):
     try:
         if os.path.exists(course_path):
             os.remove(course_path)
-        # Delete images folder
         if os.path.exists(images_folder):
             import shutil
             shutil.rmtree(images_folder)
@@ -176,7 +154,19 @@ def delete_course(course_key, course_path, images_folder):
     except:
         return False
 
-# Convert PPT to HTML with full content (text, colors, tables, images)
+# Safe color extraction function
+def get_color_rgb(color):
+    """Safely extract RGB color from a color object"""
+    try:
+        if color is not None and hasattr(color, 'rgb'):
+            rgb = color.rgb
+            if rgb is not None:
+                return f"{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
+    except:
+        pass
+    return None
+
+# Convert PPT to HTML with full content
 def convert_ppt_to_html_slides(ppt_path):
     """Convert PPT to HTML slides that preserve ALL formatting"""
     try:
@@ -233,10 +223,21 @@ def convert_ppt_to_html_slides(ppt_path):
                                 font_style += "font-style: italic;"
                             if run.font.underline:
                                 font_style += "text-decoration: underline;"
-                            if run.font.color and run.font.color.rgb:
-                                font_style += f"color: #{run.font.color.rgb};"
-                            if run.font.size:
-                                font_style += f"font-size: {run.font.size.pt}pt;"
+                            
+                            # Safe color extraction
+                            try:
+                                if run.font.color and run.font.color.rgb:
+                                    color_rgb = run.font.color.rgb
+                                    font_style += f"color: rgb({color_rgb[0]}, {color_rgb[1]}, {color_rgb[2]});"
+                            except:
+                                pass
+                            
+                            # Safe font size
+                            try:
+                                if run.font.size:
+                                    font_style += f"font-size: {run.font.size.pt}pt;"
+                            except:
+                                pass
                             
                             if font_style:
                                 para_html += f'<span style="{font_style}">{text}</span>'
@@ -255,16 +256,23 @@ def convert_ppt_to_html_slides(ppt_path):
                         html_content += '<tr>'
                         for cell in row.cells:
                             bg_color = ""
-                            if cell.fill.solid():
-                                bg_color = f'background-color: #{cell.fill.fore_color.rgb};'
-                            html_content += f'<td style="border: 1px solid #ddd; padding: 8px; {bg_color}">{cell.text}</td>'
+                            try:
+                                if cell.fill.solid():
+                                    if cell.fill.fore_color and hasattr(cell.fill.fore_color, 'rgb'):
+                                        if cell.fill.fore_color.rgb:
+                                            rgb = cell.fill.fore_color.rgb
+                                            bg_color = f'background-color: rgb({rgb[0]}, {rgb[1]}, {rgb[2]});'
+                            except:
+                                pass
+                            
+                            html_content += f'<td style="border: 1px solid #ddd; padding: 8px; {bg_color}">{html.escape(cell.text)}</td>'
                         html_content += '</tr>'
                     
                     html_content += '</table>'
                 
                 # Handle pictures/images
-                if shape.shape_type == 13:  # MSO_SHAPE_TYPE.PICTURE
-                    try:
+                try:
+                    if shape.shape_type == 13:  # MSO_SHAPE_TYPE.PICTURE
                         image = shape.image
                         image_bytes = image.blob
                         img_base64 = base64.b64encode(image_bytes).decode('utf-8')
@@ -276,21 +284,25 @@ def convert_ppt_to_html_slides(ppt_path):
                                      alt="Slide image">
                             </div>
                         '''
-                    except:
-                        pass
-                
-                # Handle charts
-                if hasattr(shape, 'chart'):
-                    html_content += f'<p style="color: #ff69b4;">📊 Chart: {shape.chart.chart_title.text_frame.text if shape.chart.chart_title else "Chart"}</p>'
-            
-            # Check for slide background color
-            if slide.background.fill.type:
-                try:
-                    if slide.background.fill.fore_color.rgb:
-                        bg_color = f'#{slide.background.fill.fore_color.rgb}'
-                        html_content = html_content.replace('background: white;', f'background: {bg_color};')
                 except:
                     pass
+                
+                # Handle charts
+                try:
+                    if hasattr(shape, 'chart') and shape.chart:
+                        html_content += f'<p style="color: #ff69b4;">📊 Chart: {shape.chart.chart_title.text_frame.text if shape.chart.chart_title else "Chart"}</p>'
+                except:
+                    pass
+            
+            # Safe background color extraction
+            try:
+                if slide.background.fill.type and slide.background.fill.fore_color:
+                    if hasattr(slide.background.fill.fore_color, 'rgb') and slide.background.fill.fore_color.rgb:
+                        rgb = slide.background.fill.fore_color.rgb
+                        bg_color = f'rgb({rgb[0]}, {rgb[1]}, {rgb[2]})'
+                        html_content = html_content.replace('background: white;', f'background: {bg_color};')
+            except:
+                pass
             
             html_content += """
                 </div>
@@ -353,9 +365,9 @@ def display_presentation(course):
                     st.rerun()
         
         with col5:
-            # Fullscreen button - FIXED
+            # Fullscreen button
             st.markdown(f"""
-                <button id="fullscreen-btn" style="
+                <button onclick="toggleFullscreen()" style="
                     background: linear-gradient(45deg, #ff69b4, #ff1493);
                     color: white;
                     border: none;
@@ -364,13 +376,6 @@ def display_presentation(course):
                     font-weight: bold;
                     cursor: pointer;
                     width: 100%;
-                "
-                onclick="
-                    if (!document.fullscreenElement) {{
-                        document.documentElement.requestFullscreen();
-                    }} else {{
-                        document.exitFullscreen();
-                    }}
                 ">
                     🖥️ FULLSCREEN
                 </button>
@@ -378,15 +383,7 @@ def display_presentation(course):
         
         # Display current slide
         st.markdown("---")
-        
-        # Wrap slide content for better display
-        st.markdown(f"""
-            <div id="slide-container" style="
-                transition: all 0.3s ease;
-            ">
-                {slides_html[st.session_state.slide_index]}
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="fade-in">{slides_html[st.session_state.slide_index]}</div>', unsafe_allow_html=True)
         
         # Navigation hint
         st.info("💡 **Tip:** Use ← and → arrow keys on your keyboard to navigate slides | Press F11 for fullscreen")
