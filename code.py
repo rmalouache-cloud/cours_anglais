@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 from PIL import Image
 import io
+import random
 
 # Page configuration
 st.set_page_config(
@@ -13,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS
+# Custom CSS with animations and interactions
 st.markdown("""
 <style>
     .stApp {
@@ -24,6 +25,7 @@ st.markdown("""
         color: #c2185b !important;
     }
     
+    /* Animated buttons */
     .stButton > button {
         background: linear-gradient(45deg, #ff69b4, #ff1493);
         color: white;
@@ -32,12 +34,22 @@ st.markdown("""
         padding: 12px 25px;
         font-weight: bold;
         transition: all 0.3s ease;
+        animation: pulse 2s infinite;
     }
     
     .stButton > button:hover {
         transform: scale(1.05);
+        animation: none;
+        box-shadow: 0 0 20px rgba(255,105,180,0.5);
     }
     
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+        100% { transform: scale(1); }
+    }
+    
+    /* Floating animation for cards */
     .course-card {
         background: white;
         border-radius: 20px;
@@ -45,49 +57,137 @@ st.markdown("""
         margin: 10px 0;
         box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         border: 1px solid #ffc0cb;
+        transition: all 0.3s ease;
+        cursor: pointer;
     }
     
     .course-card:hover {
-        transform: translateY(-5px);
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.15);
     }
     
-    .slide-image {
-        width: 100%;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        margin: 10px 0;
+    /* Bouncing emoji */
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
     }
     
-    .slide-container {
-        background: white;
-        border-radius: 20px;
-        padding: 20px;
-        margin: 20px 0;
-        text-align: center;
+    .bouncing-emoji {
+        animation: bounce 1s ease-in-out infinite;
+        display: inline-block;
+        font-size: 30px;
+        margin: 0 5px;
     }
     
-    @keyframes fadeInUp {
-        from { transform: translateY(20px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
+    /* Rotating heart */
+    @keyframes heartbeat {
+        0% { transform: scale(1); }
+        25% { transform: scale(1.2); }
+        50% { transform: scale(1); }
+        75% { transform: scale(1.1); }
+        100% { transform: scale(1); }
     }
     
-    .fade-in {
-        animation: fadeInUp 0.6s ease-out;
+    .heartbeat {
+        animation: heartbeat 1.5s ease-in-out infinite;
+        display: inline-block;
     }
     
-    /* Logo positioning */
-    .logo-container {
-        text-align: center;
-        margin-bottom: 10px;
+    /* Sparkle effect */
+    @keyframes sparkle {
+        0% { opacity: 0; transform: scale(0); }
+        50% { opacity: 1; transform: scale(1.2); }
+        100% { opacity: 0; transform: scale(0); }
     }
     
-    .header-emoji {
-        font-size: 35px;
-        text-align: center;
-        margin: 10px 0;
+    .sparkle {
+        position: fixed;
+        pointer-events: none;
+        animation: sparkle 1s ease-out forwards;
+        font-size: 20px;
+    }
+    
+    /* Slide-in animation */
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .slide-in {
+        animation: slideIn 0.5s ease-out;
+    }
+    
+    /* Glowing text */
+    @keyframes glow {
+        0% { text-shadow: 0 0 5px #ff69b4; }
+        50% { text-shadow: 0 0 20px #ff69b4, 0 0 30px #ff1493; }
+        100% { text-shadow: 0 0 5px #ff69b4; }
+    }
+    
+    .glow-text {
+        animation: glow 2s ease-in-out infinite;
+    }
+    
+    /* Confetti effect */
+    .confetti {
+        position: fixed;
+        width: 10px;
+        height: 10px;
+        background: #ff69b4;
+        animation: confetti-fall 3s linear forwards;
+        z-index: 9999;
+    }
+    
+    @keyframes confetti-fall {
+        0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+        100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
     }
 </style>
+
+<script>
+    // Function to create sparkles on click
+    function createSparkle(event) {
+        for(let i = 0; i < 10; i++) {
+            let sparkle = document.createElement('div');
+            sparkle.innerHTML = ['✨', '⭐', '💖', '🌸', '📚'][Math.floor(Math.random() * 5)];
+            sparkle.className = 'sparkle';
+            sparkle.style.left = event.clientX + 'px';
+            sparkle.style.top = event.clientY + 'px';
+            sparkle.style.position = 'fixed';
+            document.body.appendChild(sparkle);
+            setTimeout(() => sparkle.remove(), 1000);
+        }
+    }
+    
+    // Add click event listener to body
+    document.addEventListener('click', createSparkle);
+    
+    // Create confetti
+    function createConfetti() {
+        for(let i = 0; i < 50; i++) {
+            let confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * window.innerWidth + 'px';
+            confetti.style.backgroundColor = ['#ff69b4', '#ff1493', '#ffc0cb', '#ffb6c1'][Math.random() * 4];
+            confetti.style.width = Math.random() * 8 + 4 + 'px';
+            confetti.style.height = Math.random() * 8 + 4 + 'px';
+            confetti.style.animationDuration = Math.random() * 2 + 1 + 's';
+            document.body.appendChild(confetti);
+            setTimeout(() => confetti.remove(), 3000);
+        }
+    }
+</script>
 """, unsafe_allow_html=True)
+
+# Initialize session state for interactions
+if 'click_count' not in st.session_state:
+    st.session_state.click_count = 0
+if 'show_surprise' not in st.session_state:
+    st.session_state.show_surprise = False
+if 'message' not in st.session_state:
+    st.session_state.message = ""
+if 'selected_emoji' not in st.session_state:
+    st.session_state.selected_emoji = "🌸"
 
 # Initialize folders
 def init_folders():
@@ -116,7 +216,6 @@ def delete_course(course_key, course_path, images_folder):
     try:
         if os.path.exists(course_path):
             os.remove(course_path)
-        # Delete images folder
         if os.path.exists(images_folder):
             import shutil
             shutil.rmtree(images_folder)
@@ -128,9 +227,8 @@ def delete_course(course_key, course_path, images_folder):
     except:
         return False
 
-# Convert PPT to images using python-pptx (extract text with basic formatting)
+# Convert PPT to HTML slides
 def convert_ppt_to_html_slides(ppt_path):
-    """Convert PPT to HTML slides that preserve formatting"""
     try:
         from pptx import Presentation
         
@@ -139,7 +237,7 @@ def convert_ppt_to_html_slides(ppt_path):
         
         for idx, slide in enumerate(prs.slides):
             html_content = f"""
-            <div style="
+            <div class="slide-in" style="
                 width: 100%;
                 min-height: 500px;
                 background: white;
@@ -147,6 +245,7 @@ def convert_ppt_to_html_slides(ppt_path):
                 padding: 40px;
                 font-family: 'Segoe UI', Arial, sans-serif;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                transition: transform 0.3s ease;
             ">
                 <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">
                     📍 Slide {idx + 1}
@@ -154,12 +253,10 @@ def convert_ppt_to_html_slides(ppt_path):
                 <div style="font-size: 20px; line-height: 1.6; margin-top: 20px;">
             """
             
-            # Extract text from shapes
             for shape in slide.shapes:
                 if hasattr(shape, "text") and shape.text.strip():
-                    # Check if it's a title (usually first shape)
                     if idx == 0 and shape == slide.shapes[0]:
-                        html_content += f"<h1 style='color: #ff69b4;'>{shape.text}</h1>"
+                        html_content += f"<h1 style='color: #ff69b4; animation: glow 2s infinite;'>{shape.text}</h1>"
                     else:
                         html_content += f"<p>📌 {shape.text}</p>"
             
@@ -173,36 +270,59 @@ def convert_ppt_to_html_slides(ppt_path):
     except Exception as e:
         return None
 
-# Display presentation
+# Display presentation with interactions
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
-    # Back button
-    col_back, col_empty = st.columns([1, 5])
+    # Interactive back button with counter
+    col_back, col_counter, col_empty = st.columns([1, 1, 4])
     with col_back:
         if st.button("◀ Back to Courses", use_container_width=False):
             st.session_state['viewing_course'] = None
             st.rerun()
     
-    # Title
+    with col_counter:
+        if st.button(f"🎯 Click me! ({st.session_state.click_count})", use_container_width=False):
+            st.session_state.click_count += 1
+            if st.session_state.click_count % 5 == 0:
+                st.session_state.show_surprise = True
+                st.session_state.message = random.choice([
+                    "🎉 You're amazing! 🎉",
+                    "⭐ Great job! ⭐",
+                    "💖 Keep going! 💖",
+                    "🌸 You're a star! 🌸",
+                    "📚 Learning is fun! 📚"
+                ])
+                st.balloons()
+            st.rerun()
+    
+    if st.session_state.show_surprise:
+        st.success(f"✨ {st.session_state.message} ✨")
+        time.sleep(2)
+        st.session_state.show_surprise = False
+    
+    # Title with animated emoji
     st.markdown(f"""
         <div style="text-align: center;">
-            <h2>📖 {course['title']} 📖</h2>
+            <div>
+                <span class="bouncing-emoji">📖</span>
+                <span class="heartbeat">💖</span>
+                <span class="bouncing-emoji">✨</span>
+            </div>
+            <h2 class="glow-text">{course['title']}</h2>
             <p style="color: #c2185b;">⭐ Level {course['level']} | {course['upload_date']} ⭐</p>
         </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Check if we have HTML slides cached
     slides_html = convert_ppt_to_html_slides(course["path"])
     
     if slides_html:
-        # Initialize slide index
         if 'slide_index' not in st.session_state:
             st.session_state.slide_index = 0
         
-        # Navigation buttons
+        # Navigation with interactive buttons
         col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
         
         with col1:
@@ -225,9 +345,8 @@ def display_presentation(course):
                     st.rerun()
         
         with col5:
-            # Fullscreen button
             st.markdown("""
-                <button onclick="document.documentElement.requestFullscreen()" style="
+                <button onclick="document.documentElement.requestFullscreen(); createConfetti();" style="
                     background: linear-gradient(45deg, #ff69b4, #ff1493);
                     color: white;
                     border: none;
@@ -236,19 +355,30 @@ def display_presentation(course):
                     font-weight: bold;
                     cursor: pointer;
                     width: 100%;
-                ">
-                    🖥️ FULLSCREEN
+                    transition: transform 0.3s;
+                "
+                onmouseover="this.style.transform='scale(1.05)'"
+                onmouseout="this.style.transform='scale(1)'">
+                    🖥️ FULLSCREEN 🎉
                 </button>
             """, unsafe_allow_html=True)
         
-        # Display current slide
         st.markdown("---")
         st.markdown(slides_html[st.session_state.slide_index], unsafe_allow_html=True)
         
-        # Navigation hint
-        st.info("💡 **Tip:** Use ← and → arrow keys on your keyboard to navigate slides")
+        # Interactive tip button
+        if st.button("💡 Get a learning tip 💡"):
+            tips = [
+                "📝 Take notes while watching!",
+                "💕 Practice with a friend after!",
+                "⭐ Review vocabulary 3 times!",
+                "🌸 Ask questions if confused!",
+                "🎯 Set a small goal for each slide!",
+                "📖 Repeat key phrases out loud!",
+                "✨ Draw mind maps of what you learn!"
+            ]
+            st.info(f"💖 {random.choice(tips)}")
         
-        # Download option
         with st.expander("📥 Download Original PowerPoint", expanded=False):
             with open(course["path"], "rb") as f:
                 st.download_button(
@@ -257,16 +387,8 @@ def display_presentation(course):
                     file_name=course["filename"],
                     mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
                 )
-    
     else:
-        st.error("❌ Cannot display this PowerPoint. Please make sure the file is valid.")
-        with open(course["path"], "rb") as f:
-            st.download_button(
-                label="📥 Download PowerPoint",
-                data=f,
-                file_name=course["filename"],
-                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            )
+        st.error("❌ Cannot display this PowerPoint.")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -275,36 +397,87 @@ def main():
     if 'viewing_course' not in st.session_state:
         st.session_state.viewing_course = None
     
-    # Logo/Header emojis
-    st.markdown('<div class="logo-container">🌸 📚 ✨ 🎓 💖</div>', unsafe_allow_html=True)
-    
-    # Title
+    # Animated header
     st.markdown("""
-        <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
-            <h1>✨ English Teacher's Platform ✨</h1>
+        <div style="text-align: center;">
+            <div>
+                <span class="bouncing-emoji">🌸</span>
+                <span class="heartbeat">💖</span>
+                <span class="bouncing-emoji">📚</span>
+                <span class="heartbeat">✨</span>
+                <span class="bouncing-emoji">🎓</span>
+            </div>
+            <h1 class="glow-text">✨ English Teacher's Platform ✨</h1>
             <p style="color: #c2185b; font-size: 18px;">💕 Make learning beautiful and fun! 💕</p>
+            <div>
+                <span class="bouncing-emoji">📖</span>
+                <span class="bouncing-emoji">📝</span>
+                <span class="bouncing-emoji">🎓</span>
+                <span class="bouncing-emoji">✏️</span>
+                <span class="bouncing-emoji">📕</span>
+            </div>
         </div>
     """, unsafe_allow_html=True)
     
-    st.markdown('<div class="header-emoji">📖 📝 🎓 ✏️ 📕 💖 🌸</div>', unsafe_allow_html=True)
+    # Interactive mood selector
+    st.markdown("---")
+    col_mood1, col_mood2, col_mood3, col_mood4, col_mood5 = st.columns(5)
     
-    # Sidebar
+    moods = {"🌸": "Happy", "⭐": "Motivated", "💖": "Loving", "🎯": "Focused", "📚": "Learning"}
+    mood_emojis = list(moods.keys())
+    
+    for i, (emoji, mood) in enumerate(moods.items()):
+        with eval(f"col_mood{i+1}"):
+            if st.button(f"{emoji} {mood}", key=f"mood_{emoji}"):
+                st.session_state.selected_emoji = emoji
+                st.success(f"✨ {mood} mood activated! ✨")
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
+    
+    # Sidebar with interactions
     with st.sidebar:
-        st.markdown("""
+        st.markdown(f"""
             <div style="text-align: center; padding: 20px 0;">
-                <div style="font-size: 50px;">👩‍🏫</div>
+                <div style="font-size: 60px; animation: bounce 1s infinite;">👩‍🏫</div>
                 <h3 style="color: #ff69b4;">✨ Welcome! ✨</h3>
+                <p>Your mood: {st.session_state.selected_emoji}</p>
             </div>
         """, unsafe_allow_html=True)
         
+        # Interactive role selector with emojis
         mode = st.radio(
             "📌 Choose your role:",
             ["👩‍🏫 Teacher", "👧 Student"],
             index=0
         )
         
+        # Interactive quote generator
+        if st.button("💬 Get inspired 💬"):
+            quotes = [
+                "✨ Teaching is a work of heart! ✨",
+                "💖 Every student can learn! 💖",
+                "🌸 Make mistakes, learn faster! 🌸",
+                "⭐ You're doing amazing! ⭐",
+                "📚 Knowledge is power! 📚"
+            ]
+            st.info(random.choice(quotes))
+        
         st.markdown("---")
-        st.markdown('<div style="text-align: center;">🌸 Made with love for English teachers 🌸</div>', unsafe_allow_html=True)
+        
+        # Interactive fun fact
+        if st.button("🎲 Random fun fact 🎲"):
+            facts = [
+                "Did you know? 'E' is the most common letter in English!",
+                "The longest English word has 189,819 letters!",
+                "English has over 1 million words!",
+                "The shortest sentence is 'Go!'",
+                "Shakespeare invented over 1,700 words!"
+            ]
+            st.success(f"📖 {random.choice(facts)}")
+        
+        st.markdown("---")
+        st.markdown('<div style="text-align: center;"><span class="heartbeat">🌸</span> Made with love <span class="heartbeat">🌸</span></div>', unsafe_allow_html=True)
     
     metadata = load_metadata()
     
@@ -343,16 +516,13 @@ def teacher_mode(metadata):
         
         if st.button("💖 Save Course", use_container_width=True):
             if title and uploaded_file:
-                # Create folder for this course
                 course_folder = Path(f"courses/Level_{level}/{level}{sub_level}")
                 course_folder.mkdir(parents=True, exist_ok=True)
                 
-                # Save file
                 save_path = course_folder / uploaded_file.name
                 with open(save_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 
-                # Save metadata
                 course_key = f"{full_level}_{uploaded_file.name}"
                 metadata[course_key] = {
                     "title": title,
@@ -385,6 +555,12 @@ def teacher_mode(metadata):
             st.write("**📊 Courses per level:**")
             for level, count in sorted(levels_count.items()):
                 st.progress(min(count/10, 1.0), text=f"Level {level}: {count} courses")
+        
+        # Interactive celebration button
+        if st.button("🎉 Celebrate success 🎉"):
+            st.balloons()
+            st.snow()
+            st.success("🎊 You're doing great! 🎊")
     
     st.markdown("---")
     st.subheader("📚 Manage Your Courses")
@@ -400,7 +576,7 @@ def teacher_mode(metadata):
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
                     st.markdown(f"""
-                        <div class="course-card">
+                        <div class="course-card" onclick="createSparkle(event)">
                             <strong>📘 {course['title']}</strong><br>
                             <small>🎯 Level {course['level']}</small><br>
                             <small>📅 {course['upload_date']}</small><br>
@@ -441,6 +617,7 @@ def student_mode(metadata):
     
     st.subheader("🎓 Browse Your Courses")
     
+    # Interactive level selector with visual feedback
     col1, col2 = st.columns(2)
     with col1:
         level = st.selectbox("📚 Select Main Level", ["A", "B", "C"])
@@ -483,22 +660,37 @@ def student_mode(metadata):
                             key=f"student_download_{key}"
                         )
                 
-                if st.button(f"💡 Get a tip", key=f"tip_{key}"):
-                    tips = [
-                        "✨ Take notes while watching!",
-                        "💕 Practice with a friend!",
-                        "⭐ Review key vocabulary after!",
-                        "🌸 Ask questions if something is unclear!",
-                        "📝 Write down new words!",
-                        "🎯 Repeat after the presentation!"
-                    ]
-                    import random
-                    st.info(f"💖 Tip: {random.choice(tips)}")
+                # Interactive learning buttons
+                col_tip, col_review, col_practice = st.columns(3)
+                with col_tip:
+                    if st.button(f"💡 Get a tip", key=f"tip_{key}"):
+                        tips = [
+                            "✨ Take notes while watching!",
+                            "💕 Practice with a friend!",
+                            "⭐ Review key vocabulary after!",
+                            "🌸 Ask questions if something is unclear!",
+                            "📝 Write down new words!",
+                            "🎯 Repeat after the presentation!"
+                        ]
+                        st.info(f"💖 Tip: {random.choice(tips)}")
+                
+                with col_review:
+                    if st.button(f"⭐ Rate this course", key=f"rate_{key}"):
+                        rating = random.randint(4, 5)
+                        st.success(f"⭐ You gave this course {rating}/5 stars! ⭐")
+                
+                with col_practice:
+                    if st.button(f"🎯 Practice mode", key=f"practice_{key}"):
+                        st.info("🎧 Try to repeat what you learned out loud! 🎧")
     else:
         st.warning(f"💔 No courses available for Level {full_level} yet.")
         st.markdown("""
             <div style="text-align: center; padding: 40px;">
-                <div style="font-size: 50px;">📚✨💕</div>
+                <div>
+                    <span class="bouncing-emoji">📚</span>
+                    <span class="heartbeat">✨</span>
+                    <span class="bouncing-emoji">💕</span>
+                </div>
                 <p style="color: #c2185b;">🌸 Ask your teacher to upload courses for this level! 🌸</p>
             </div>
         """, unsafe_allow_html=True)
