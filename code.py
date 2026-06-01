@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 from PIL import Image
 import io
+import base64
 
 # Page configuration
 st.set_page_config(
@@ -13,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS with added animations
+# Custom CSS
 st.markdown("""
 <style>
     .stApp {
@@ -45,12 +46,10 @@ st.markdown("""
         margin: 10px 0;
         box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         border: 1px solid #ffc0cb;
-        transition: all 0.3s ease;
     }
     
     .course-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     }
     
     .slide-image {
@@ -77,96 +76,62 @@ st.markdown("""
         animation: fadeInUp 0.6s ease-out;
     }
     
-    /* NEW ANIMATIONS */
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
+    /* Fullscreen styles */
+    .fullscreen-mode {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: white;
+        z-index: 9999;
+        overflow-y: auto;
+        padding: 40px;
     }
     
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
+    /* PPT content styles */
+    .ppt-slide {
+        font-family: 'Segoe UI', Arial, sans-serif;
     }
-    
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        75% { transform: translateX(5px); }
+    .ppt-slide table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 15px 0;
     }
-    
-    @keyframes glow {
-        0% { text-shadow: 0 0 0px #ff69b4; }
-        50% { text-shadow: 0 0 10px #ff69b4, 0 0 20px #ff1493; }
-        100% { text-shadow: 0 0 0px #ff69b4; }
+    .ppt-slide th, .ppt-slide td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
     }
-    
-    @keyframes float {
-        0% { transform: translateY(0px); }
-        50% { transform: translateY(-8px); }
-        100% { transform: translateY(0px); }
+    .ppt-slide th {
+        background-color: #ff69b4;
+        color: white;
     }
-    
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+    .ppt-slide img {
+        max-width: 100%;
+        border-radius: 10px;
+        margin: 10px 0;
     }
-    
-    .bouncing-emoji {
-        animation: bounce 1s ease-in-out infinite;
-        display: inline-block;
-    }
-    
-    .pulse-effect {
-        animation: pulse 2s ease-in-out infinite;
-    }
-    
-    .glow-text {
-        animation: glow 2s ease-in-out infinite;
-    }
-    
-    .floating-card {
-        animation: float 3s ease-in-out infinite;
-    }
-    
-    .spin-on-hover:hover {
-        animation: spin 0.5s ease-in-out;
-        display: inline-block;
-    }
-    
-    .shake-on-click:active {
-        animation: shake 0.3s ease-in-out;
-    }
-    
-    /* Progress bar animation */
-    .stProgress > div > div {
-        background: linear-gradient(90deg, #ff69b4, #ff1493);
-        transition: width 0.5s ease;
-    }
-    
-    /* Success message animation */
-    .stAlert {
-        animation: fadeInUp 0.4s ease-out;
-    }
-    
-    /* Expander animation */
-    .streamlit-expanderHeader {
-        transition: all 0.3s ease;
-    }
-    
-    .streamlit-expanderHeader:hover {
-        background-color: #fff0f5;
+    .ppt-slide ul, .ppt-slide ol {
+        margin: 10px 0;
+        padding-left: 25px;
     }
 </style>
 
 <script>
-    // Simple animation on button click
+    // Fullscreen function that works
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    }
+    
+    // Add click event to fullscreen button
     document.addEventListener('click', function(e) {
-        if (e.target.tagName === 'BUTTON') {
-            e.target.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                e.target.style.transform = 'scale(1)';
-            }, 150);
+        if (e.target.id === 'fullscreen-btn' || e.target.parentElement.id === 'fullscreen-btn') {
+            toggleFullscreen();
         }
     });
 </script>
@@ -211,18 +176,21 @@ def delete_course(course_key, course_path, images_folder):
     except:
         return False
 
-# Convert PPT to images using python-pptx (extract text with basic formatting)
+# Convert PPT to HTML with full content (text, colors, tables, images)
 def convert_ppt_to_html_slides(ppt_path):
-    """Convert PPT to HTML slides that preserve formatting"""
+    """Convert PPT to HTML slides that preserve ALL formatting"""
     try:
         from pptx import Presentation
+        from pptx.util import Pt
+        from pptx.enum.text import PP_ALIGN
+        import html
         
         prs = Presentation(ppt_path)
         slides_html = []
         
         for idx, slide in enumerate(prs.slides):
             html_content = f"""
-            <div style="
+            <div class="ppt-slide" style="
                 width: 100%;
                 min-height: 500px;
                 background: white;
@@ -230,22 +198,99 @@ def convert_ppt_to_html_slides(ppt_path):
                 padding: 40px;
                 font-family: 'Segoe UI', Arial, sans-serif;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                transition: all 0.3s ease;
             ">
-                <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">
-                    Slide {idx + 1}
-                </h2>
-                <div style="font-size: 20px; line-height: 1.6; margin-top: 20px;">
+                <div style="border-bottom: 3px solid #ff69b4; margin-bottom: 20px; padding-bottom: 10px;">
+                    <span style="color: #ff69b4; font-size: 14px;">Slide {idx + 1}</span>
+                </div>
+                <div style="font-size: 18px; line-height: 1.6;">
             """
             
-            # Extract text from shapes
+            # Extract ALL content from shapes
             for shape in slide.shapes:
-                if hasattr(shape, "text") and shape.text.strip():
-                    # Check if it's a title (usually first shape)
-                    if idx == 0 and shape == slide.shapes[0]:
-                        html_content += f"<h1 style='color: #ff69b4;'>{shape.text}</h1>"
-                    else:
-                        html_content += f"<p>{shape.text}</p>"
+                # Handle text boxes with formatting
+                if shape.has_text_frame:
+                    text_frame = shape.text_frame
+                    for paragraph in text_frame.paragraphs:
+                        # Get alignment
+                        align_map = {
+                            PP_ALIGN.LEFT: 'left',
+                            PP_ALIGN.CENTER: 'center',
+                            PP_ALIGN.RIGHT: 'right',
+                            PP_ALIGN.JUSTIFY: 'justify'
+                        }
+                        align = align_map.get(paragraph.alignment, 'left')
+                        
+                        para_html = f'<p style="text-align: {align}; margin: 10px 0;">'
+                        
+                        for run in paragraph.runs:
+                            # Get text formatting
+                            text = html.escape(run.text)
+                            font_style = ""
+                            
+                            if run.font.bold:
+                                font_style += "font-weight: bold;"
+                            if run.font.italic:
+                                font_style += "font-style: italic;"
+                            if run.font.underline:
+                                font_style += "text-decoration: underline;"
+                            if run.font.color and run.font.color.rgb:
+                                font_style += f"color: #{run.font.color.rgb};"
+                            if run.font.size:
+                                font_style += f"font-size: {run.font.size.pt}pt;"
+                            
+                            if font_style:
+                                para_html += f'<span style="{font_style}">{text}</span>'
+                            else:
+                                para_html += text
+                        
+                        para_html += '</p>'
+                        html_content += para_html
+                
+                # Handle tables
+                if shape.has_table:
+                    table = shape.table
+                    html_content += '<table style="border-collapse: collapse; width: 100%; margin: 15px 0;">'
+                    
+                    for row in table.rows:
+                        html_content += '<tr>'
+                        for cell in row.cells:
+                            bg_color = ""
+                            if cell.fill.solid():
+                                bg_color = f'background-color: #{cell.fill.fore_color.rgb};'
+                            html_content += f'<td style="border: 1px solid #ddd; padding: 8px; {bg_color}">{cell.text}</td>'
+                        html_content += '</tr>'
+                    
+                    html_content += '</table>'
+                
+                # Handle pictures/images
+                if shape.shape_type == 13:  # MSO_SHAPE_TYPE.PICTURE
+                    try:
+                        image = shape.image
+                        image_bytes = image.blob
+                        img_base64 = base64.b64encode(image_bytes).decode('utf-8')
+                        img_ext = image.ext
+                        html_content += f'''
+                            <div style="text-align: center; margin: 15px 0;">
+                                <img src="data:image/{img_ext};base64,{img_base64}" 
+                                     style="max-width: 100%; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                                     alt="Slide image">
+                            </div>
+                        '''
+                    except:
+                        pass
+                
+                # Handle charts
+                if hasattr(shape, 'chart'):
+                    html_content += f'<p style="color: #ff69b4;">📊 Chart: {shape.chart.chart_title.text_frame.text if shape.chart.chart_title else "Chart"}</p>'
+            
+            # Check for slide background color
+            if slide.background.fill.type:
+                try:
+                    if slide.background.fill.fore_color.rgb:
+                        bg_color = f'#{slide.background.fill.fore_color.rgb}'
+                        html_content = html_content.replace('background: white;', f'background: {bg_color};')
+                except:
+                    pass
             
             html_content += """
                 </div>
@@ -255,6 +300,7 @@ def convert_ppt_to_html_slides(ppt_path):
         
         return slides_html
     except Exception as e:
+        st.error(f"Error reading PPT: {str(e)}")
         return None
 
 # Display presentation
@@ -266,14 +312,10 @@ def display_presentation(course):
         st.session_state['viewing_course'] = None
         st.rerun()
     
-    # Title with animated emoji
+    # Title
     st.markdown(f"""
         <div style="text-align: center;">
-            <div>
-                <span class="bouncing-emoji">📖</span>
-                <span class="bouncing-emoji">✨</span>
-            </div>
-            <h2 class="glow-text">{course['title']}</h2>
+            <h2>📖 {course['title']}</h2>
             <p style="color: #c2185b;">Level {course['level']} | {course['upload_date']}</p>
         </div>
     """, unsafe_allow_html=True)
@@ -311,9 +353,9 @@ def display_presentation(course):
                     st.rerun()
         
         with col5:
-            # Fullscreen button with hover animation
-            st.markdown("""
-                <button onclick="document.documentElement.requestFullscreen()" style="
+            # Fullscreen button - FIXED
+            st.markdown(f"""
+                <button id="fullscreen-btn" style="
                     background: linear-gradient(45deg, #ff69b4, #ff1493);
                     color: white;
                     border: none;
@@ -322,22 +364,34 @@ def display_presentation(course):
                     font-weight: bold;
                     cursor: pointer;
                     width: 100%;
-                    transition: all 0.3s ease;
                 "
-                onmouseover="this.style.transform='scale(1.05)'"
-                onmouseout="this.style.transform='scale(1)'">
+                onclick="
+                    if (!document.fullscreenElement) {{
+                        document.documentElement.requestFullscreen();
+                    }} else {{
+                        document.exitFullscreen();
+                    }}
+                ">
                     🖥️ FULLSCREEN
                 </button>
             """, unsafe_allow_html=True)
         
-        # Display current slide with fade animation
+        # Display current slide
         st.markdown("---")
-        st.markdown(f'<div class="fade-in">{slides_html[st.session_state.slide_index]}</div>', unsafe_allow_html=True)
+        
+        # Wrap slide content for better display
+        st.markdown(f"""
+            <div id="slide-container" style="
+                transition: all 0.3s ease;
+            ">
+                {slides_html[st.session_state.slide_index]}
+            </div>
+        """, unsafe_allow_html=True)
         
         # Navigation hint
-        st.info("💡 **Tip:** Use ← and → arrow keys on your keyboard to navigate slides")
+        st.info("💡 **Tip:** Use ← and → arrow keys on your keyboard to navigate slides | Press F11 for fullscreen")
         
-        # Download option (in case they want the original)
+        # Download option
         with st.expander("📥 Download Original PowerPoint", expanded=False):
             with open(course["path"], "rb") as f:
                 st.download_button(
@@ -364,23 +418,17 @@ def main():
     if 'viewing_course' not in st.session_state:
         st.session_state.viewing_course = None
     
-    # Title with animated emojis
+    # Title
     st.markdown("""
         <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
-            <div>
-                <span class="bouncing-emoji">🌸</span>
-                <span class="bouncing-emoji">✨</span>
-                <span class="bouncing-emoji">📚</span>
-            </div>
-            <h1 class="glow-text">✨ English Teacher's Platform ✨</h1>
+            <h1>🌸 English Teacher's Platform 🌸</h1>
             <p style="color: #c2185b; font-size: 18px;">✨ Make learning beautiful and fun! ✨</p>
-            <div>
-                <span class="bouncing-emoji">📖</span>
-                <span class="bouncing-emoji">📝</span>
-                <span class="bouncing-emoji">🎓</span>
-                <span class="bouncing-emoji">✏️</span>
-                <span class="bouncing-emoji">📕</span>
-            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+        <div style="text-align: center; margin-bottom: 20px; font-size: 30px;">
+            📖 📝 🎓 ✏️ 📕
         </div>
     """, unsafe_allow_html=True)
     
@@ -388,8 +436,8 @@ def main():
     with st.sidebar:
         st.markdown("""
             <div style="text-align: center; padding: 20px 0;">
-                <div class="pulse-effect" style="font-size: 50px;">👩‍🏫</div>
                 <h3 style="color: #ff69b4;">✨ Welcome! ✨</h3>
+                <div style="font-size: 30px;">👩‍🏫</div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -470,15 +518,7 @@ def teacher_mode(metadata):
     with col2:
         st.subheader("📊 Quick Stats")
         total_courses = len(metadata)
-        
-        # Animated stat card
-        st.markdown(f"""
-            <div class="floating-card" style="background: white; border-radius: 15px; padding: 20px; text-align: center;">
-                <div style="font-size: 40px;" class="pulse-effect">📚</div>
-                <h3>{total_courses}</h3>
-                <p>Total Courses</p>
-            </div>
-        """, unsafe_allow_html=True)
+        st.info(f"📚 **Total courses:** {total_courses}")
         
         if metadata:
             levels_count = {}
@@ -504,7 +544,7 @@ def teacher_mode(metadata):
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
                     st.markdown(f"""
-                        <div class="course-card floating-card">
+                        <div class="course-card">
                             <strong>📘 {course['title']}</strong><br>
                             <small>🎯 Level {course['level']}</small><br>
                             <small>📅 {course['upload_date']}</small><br>
@@ -564,7 +604,7 @@ def student_mode(metadata):
                 
                 with col1:
                     st.markdown(f"""
-                        <div style="background: #fff0f5; padding: 15px; border-radius: 15px; transition: all 0.3s ease;">
+                        <div style="background: #fff0f5; padding: 15px; border-radius: 15px;">
                             <strong>💭 Description:</strong><br>
                             {course['description']}<br><br>
                             <strong>📅 Uploaded:</strong> {course['upload_date']}<br>
@@ -600,7 +640,7 @@ def student_mode(metadata):
         st.warning(f"💔 No courses available for Level {full_level} yet.")
         st.markdown("""
             <div style="text-align: center; padding: 40px;">
-                <div class="bouncing-emoji" style="font-size: 50px;">📚✨</div>
+                <div style="font-size: 50px;">📚✨</div>
                 <p style="color: #c2185b;">Ask your teacher to upload courses for this level!</p>
             </div>
         """, unsafe_allow_html=True)
