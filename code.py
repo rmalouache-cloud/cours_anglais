@@ -52,21 +52,6 @@ st.markdown("""
         transform: translateY(-5px);
     }
     
-    .slide-image {
-        width: 100%;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        margin: 10px 0;
-    }
-    
-    .slide-container {
-        background: white;
-        border-radius: 20px;
-        padding: 20px;
-        margin: 20px 0;
-        text-align: center;
-    }
-    
     @keyframes fadeInUp {
         from { transform: translateY(20px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
@@ -90,30 +75,12 @@ st.markdown("""
         padding: 8px;
         text-align: left;
     }
-    .ppt-slide th {
-        background-color: #ff69b4;
-        color: white;
-    }
     .ppt-slide img {
         max-width: 100%;
         border-radius: 10px;
         margin: 10px 0;
     }
-    .ppt-slide ul, .ppt-slide ol {
-        margin: 10px 0;
-        padding-left: 25px;
-    }
 </style>
-
-<script>
-    function toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
-        } else {
-            document.exitFullscreen();
-        }
-    }
-</script>
 """, unsafe_allow_html=True)
 
 # Initialize folders
@@ -154,25 +121,11 @@ def delete_course(course_key, course_path, images_folder):
     except:
         return False
 
-# Safe color extraction function
-def get_color_rgb(color):
-    """Safely extract RGB color from a color object"""
-    try:
-        if color is not None and hasattr(color, 'rgb'):
-            rgb = color.rgb
-            if rgb is not None:
-                return f"{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
-    except:
-        pass
-    return None
-
-# Convert PPT to HTML with full content
+# Convert PPT to HTML with images
 def convert_ppt_to_html_slides(ppt_path):
-    """Convert PPT to HTML slides that preserve ALL formatting"""
+    """Convert PPT to HTML slides with text and images"""
     try:
         from pptx import Presentation
-        from pptx.util import Pt
-        from pptx.enum.text import PP_ALIGN
         import html
         
         prs = Presentation(ppt_path)
@@ -195,84 +148,22 @@ def convert_ppt_to_html_slides(ppt_path):
                 <div style="font-size: 18px; line-height: 1.6;">
             """
             
-            # Extract ALL content from shapes
+            # Extract text from shapes
             for shape in slide.shapes:
-                # Handle text boxes with formatting
+                # Handle text
                 if shape.has_text_frame:
-                    text_frame = shape.text_frame
-                    for paragraph in text_frame.paragraphs:
-                        # Get alignment
-                        align_map = {
-                            PP_ALIGN.LEFT: 'left',
-                            PP_ALIGN.CENTER: 'center',
-                            PP_ALIGN.RIGHT: 'right',
-                            PP_ALIGN.JUSTIFY: 'justify'
-                        }
-                        align = align_map.get(paragraph.alignment, 'left')
-                        
-                        para_html = f'<p style="text-align: {align}; margin: 10px 0;">'
-                        
+                    for paragraph in shape.text_frame.paragraphs:
+                        para_html = '<p style="margin: 10px 0;">'
                         for run in paragraph.runs:
-                            # Get text formatting
                             text = html.escape(run.text)
-                            font_style = ""
-                            
-                            if run.font.bold:
-                                font_style += "font-weight: bold;"
-                            if run.font.italic:
-                                font_style += "font-style: italic;"
-                            if run.font.underline:
-                                font_style += "text-decoration: underline;"
-                            
-                            # Safe color extraction
-                            try:
-                                if run.font.color and run.font.color.rgb:
-                                    color_rgb = run.font.color.rgb
-                                    font_style += f"color: rgb({color_rgb[0]}, {color_rgb[1]}, {color_rgb[2]});"
-                            except:
-                                pass
-                            
-                            # Safe font size
-                            try:
-                                if run.font.size:
-                                    font_style += f"font-size: {run.font.size.pt}pt;"
-                            except:
-                                pass
-                            
-                            if font_style:
-                                para_html += f'<span style="{font_style}">{text}</span>'
-                            else:
+                            if text.strip():
                                 para_html += text
-                        
                         para_html += '</p>'
                         html_content += para_html
                 
-                # Handle tables
-                if shape.has_table:
-                    table = shape.table
-                    html_content += '<table style="border-collapse: collapse; width: 100%; margin: 15px 0;">'
-                    
-                    for row in table.rows:
-                        html_content += '<tr>'
-                        for cell in row.cells:
-                            bg_color = ""
-                            try:
-                                if cell.fill.solid():
-                                    if cell.fill.fore_color and hasattr(cell.fill.fore_color, 'rgb'):
-                                        if cell.fill.fore_color.rgb:
-                                            rgb = cell.fill.fore_color.rgb
-                                            bg_color = f'background-color: rgb({rgb[0]}, {rgb[1]}, {rgb[2]});'
-                            except:
-                                pass
-                            
-                            html_content += f'<td style="border: 1px solid #ddd; padding: 8px; {bg_color}">{html.escape(cell.text)}</td>'
-                        html_content += '</tr>'
-                    
-                    html_content += '</table>'
-                
-                # Handle pictures/images
+                # Handle images
                 try:
-                    if shape.shape_type == 13:  # MSO_SHAPE_TYPE.PICTURE
+                    if shape.shape_type == 13:  # Picture
                         image = shape.image
                         image_bytes = image.blob
                         img_base64 = base64.b64encode(image_bytes).decode('utf-8')
@@ -280,29 +171,22 @@ def convert_ppt_to_html_slides(ppt_path):
                         html_content += f'''
                             <div style="text-align: center; margin: 15px 0;">
                                 <img src="data:image/{img_ext};base64,{img_base64}" 
-                                     style="max-width: 100%; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
-                                     alt="Slide image">
+                                     style="max-width: 100%; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                             </div>
                         '''
                 except:
                     pass
                 
-                # Handle charts
-                try:
-                    if hasattr(shape, 'chart') and shape.chart:
-                        html_content += f'<p style="color: #ff69b4;">📊 Chart: {shape.chart.chart_title.text_frame.text if shape.chart.chart_title else "Chart"}</p>'
-                except:
-                    pass
-            
-            # Safe background color extraction
-            try:
-                if slide.background.fill.type and slide.background.fill.fore_color:
-                    if hasattr(slide.background.fill.fore_color, 'rgb') and slide.background.fill.fore_color.rgb:
-                        rgb = slide.background.fill.fore_color.rgb
-                        bg_color = f'rgb({rgb[0]}, {rgb[1]}, {rgb[2]})'
-                        html_content = html_content.replace('background: white;', f'background: {bg_color};')
-            except:
-                pass
+                # Handle tables
+                if shape.has_table:
+                    table = shape.table
+                    html_content += '<table style="border-collapse: collapse; width: 100%; margin: 15px 0; border: 1px solid #ddd;">'
+                    for row in table.rows:
+                        html_content += '<tr>'
+                        for cell in row.cells:
+                            html_content += f'<td style="border: 1px solid #ddd; padding: 8px;">{html.escape(cell.text)}</td>'
+                        html_content += '</tr>'
+                    html_content += '</table>'
             
             html_content += """
                 </div>
@@ -312,7 +196,7 @@ def convert_ppt_to_html_slides(ppt_path):
         
         return slides_html
     except Exception as e:
-        st.error(f"Error reading PPT: {str(e)}")
+        st.error(f"Error: {str(e)}")
         return None
 
 # Display presentation
@@ -320,9 +204,11 @@ def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
     # Back button
-    if st.button("◀ Back to Courses", use_container_width=False):
-        st.session_state['viewing_course'] = None
-        st.rerun()
+    col_back, col_empty = st.columns([1, 5])
+    with col_back:
+        if st.button("◀ Back", use_container_width=False):
+            st.session_state['viewing_course'] = None
+            st.rerun()
     
     # Title
     st.markdown(f"""
@@ -334,7 +220,6 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # Check if we have HTML slides cached
     slides_html = convert_ppt_to_html_slides(course["path"])
     
     if slides_html:
@@ -342,54 +227,58 @@ def display_presentation(course):
         if 'slide_index' not in st.session_state:
             st.session_state.slide_index = 0
         
-        # Navigation buttons
-        col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
+        # Navigation
+        col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
         
         with col1:
-            if st.button("◀◀ PREVIOUS", use_container_width=True):
+            if st.button("◀ PREV", use_container_width=True):
                 if st.session_state.slide_index > 0:
                     st.session_state.slide_index -= 1
                     st.rerun()
         
         with col2:
-            st.markdown(f"<h3 style='text-align: center;'>Slide {st.session_state.slide_index + 1} / {len(slides_html)}</h3>", unsafe_allow_html=True)
-        
-        with col3:
+            st.markdown(f"<p style='text-align: center;'>Slide {st.session_state.slide_index + 1} / {len(slides_html)}</p>", unsafe_allow_html=True)
             progress = (st.session_state.slide_index + 1) / len(slides_html)
             st.progress(progress)
         
-        with col4:
-            if st.button("NEXT ▶▶", use_container_width=True):
+        with col3:
+            if st.button("NEXT ▶", use_container_width=True):
                 if st.session_state.slide_index < len(slides_html) - 1:
                     st.session_state.slide_index += 1
                     st.rerun()
         
-        with col5:
-            # Fullscreen button
-            st.markdown(f"""
-                <button onclick="toggleFullscreen()" style="
+        with col4:
+            # Fullscreen button with working JavaScript
+            st.markdown("""
+                <button onclick="
+                    var elem = document.documentElement;
+                    if (elem.requestFullscreen) {
+                        elem.requestFullscreen();
+                    } else if (elem.webkitRequestFullscreen) {
+                        elem.webkitRequestFullscreen();
+                    } else if (elem.msRequestFullscreen) {
+                        elem.msRequestFullscreen();
+                    }
+                " style="
                     background: linear-gradient(45deg, #ff69b4, #ff1493);
                     color: white;
                     border: none;
                     border-radius: 25px;
-                    padding: 10px 20px;
+                    padding: 8px 16px;
                     font-weight: bold;
                     cursor: pointer;
                     width: 100%;
                 ">
-                    🖥️ FULLSCREEN
+                    🖥️ FULL
                 </button>
             """, unsafe_allow_html=True)
         
-        # Display current slide
         st.markdown("---")
-        st.markdown(f'<div class="fade-in">{slides_html[st.session_state.slide_index]}</div>', unsafe_allow_html=True)
+        st.markdown(slides_html[st.session_state.slide_index], unsafe_allow_html=True)
+        st.caption("💡 Tip: Use ◀ and ▶ buttons to navigate | Click FULL for fullscreen")
         
-        # Navigation hint
-        st.info("💡 **Tip:** Use ← and → arrow keys on your keyboard to navigate slides | Press F11 for fullscreen")
-        
-        # Download option
-        with st.expander("📥 Download Original PowerPoint", expanded=False):
+        # Download
+        with st.expander("📥 Download PowerPoint", expanded=False):
             with open(course["path"], "rb") as f:
                 st.download_button(
                     label="Download PPT File",
@@ -397,9 +286,8 @@ def display_presentation(course):
                     file_name=course["filename"],
                     mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
                 )
-    
     else:
-        st.error("❌ Cannot display this PowerPoint. Please make sure the file is valid.")
+        st.error("❌ Cannot display this PowerPoint.")
         with open(course["path"], "rb") as f:
             st.download_button(
                 label="📥 Download PowerPoint",
@@ -484,16 +372,13 @@ def teacher_mode(metadata):
         
         if st.button("💖 Save Course", use_container_width=True):
             if title and uploaded_file:
-                # Create folder for this course
                 course_folder = Path(f"courses/Level_{level}/{level}{sub_level}")
                 course_folder.mkdir(parents=True, exist_ok=True)
                 
-                # Save file
                 save_path = course_folder / uploaded_file.name
                 with open(save_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 
-                # Save metadata
                 course_key = f"{full_level}_{uploaded_file.name}"
                 metadata[course_key] = {
                     "title": title,
@@ -549,27 +434,25 @@ def teacher_mode(metadata):
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    if st.button(f"🎬 View & Present", key=f"view_{key}"):
+                    if st.button(f"🎬 View", key=f"view_{key}"):
                         st.session_state.viewing_course = course
                         st.rerun()
                 
                 with col2:
-                    if st.button(f"📥 Download", key=f"down_{key}"):
-                        with open(course["path"], "rb") as f:
-                            st.download_button(
-                                label="Click to download",
-                                data=f,
-                                file_name=course["filename"],
-                                key=f"down_btn_{key}",
-                                hidden=True
-                            )
+                    with open(course["path"], "rb") as f:
+                        st.download_button(
+                            label="📥 Download",
+                            data=f,
+                            file_name=course["filename"],
+                            key=f"down_{key}"
+                        )
                 
                 with col3:
                     if st.button(f"🗑️ Delete", key=f"del_{key}"):
                         course_folder = Path(course["path"]).parent
                         images_folder = course_folder / "images"
                         if delete_course(key, course["path"], images_folder):
-                            st.warning(f"💔 Course '{course['title']}' deleted")
+                            st.warning(f"Course deleted")
                             time.sleep(0.5)
                             st.rerun()
     else:
@@ -609,14 +492,14 @@ def student_mode(metadata):
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    if st.button(f"🎬 View Course", key=f"view_student_{key}"):
+                    if st.button(f"🎬 View", key=f"view_student_{key}"):
                         st.session_state.viewing_course = course
                         st.rerun()
                 
                 with col2:
                     with open(course["path"], "rb") as f:
                         st.download_button(
-                            label="📥 Download Course",
+                            label="📥 Download",
                             data=f,
                             file_name=course["filename"],
                             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -624,21 +507,20 @@ def student_mode(metadata):
                             key=f"student_download_{key}"
                         )
                 
-                if st.button(f"💡 Get a tip", key=f"tip_{key}"):
+                if st.button(f"💡 Tip", key=f"tip_{key}"):
                     tips = [
                         "✨ Take notes while watching!",
                         "💕 Practice with a friend!",
-                        "⭐ Review key vocabulary after!",
-                        "🌸 Ask questions if something is unclear!"
+                        "⭐ Review key vocabulary after!"
                     ]
                     import random
-                    st.info(f"💖 Tip: {random.choice(tips)}")
+                    st.info(f"💖 {random.choice(tips)}")
     else:
         st.warning(f"💔 No courses available for Level {full_level} yet.")
         st.markdown("""
             <div style="text-align: center; padding: 40px;">
                 <div style="font-size: 50px;">📚✨</div>
-                <p style="color: #c2185b;">Ask your teacher to upload courses for this level!</p>
+                <p style="color: #c2185b;">Ask your teacher to upload courses!</p>
             </div>
         """, unsafe_allow_html=True)
     
