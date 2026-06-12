@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS
+# Custom CSS with working fullscreen
 st.markdown("""
 <style>
     .stApp {
@@ -55,6 +55,26 @@ st.markdown("""
         margin: 20px 0;
         text-align: center;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    /* Fullscreen mode styles */
+    .slide-container:fullscreen {
+        background: white;
+        padding: 40px;
+        overflow-y: auto;
+    }
+    
+    .slide-container:-webkit-full-screen {
+        background: white;
+        padding: 40px;
+        overflow-y: auto;
+    }
+    
+    .slide-container:-moz-full-screen {
+        background: white;
+        padding: 40px;
+        overflow-y: auto;
     }
     
     @keyframes fadeInUp {
@@ -66,32 +86,25 @@ st.markdown("""
         animation: fadeInUp 0.6s ease-out;
     }
     
-    /* Fullscreen styles */
-    .fullscreen-enabled {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 9999 !important;
-        background: white !important;
-        overflow-y: auto !important;
-        padding: 20px !important;
+    /* Fullscreen button style */
+    .fullscreen-btn {
+        background: linear-gradient(45deg, #ff69b4, #ff1493);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 10px 20px;
+        font-weight: bold;
+        cursor: pointer;
+        width: 100%;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+    
+    .fullscreen-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 15px rgba(255,20,147,0.3);
     }
 </style>
-
-<script>
-    function toggleFullscreen(elementId) {
-        var elem = document.getElementById(elementId);
-        if (!document.fullscreenElement) {
-            elem.requestFullscreen().catch(err => {
-                console.log(`Error attempting to enable fullscreen: ${err.message}`);
-            });
-        } else {
-            document.exitFullscreen();
-        }
-    }
-</script>
 """, unsafe_allow_html=True)
 
 # Initialize folders
@@ -164,7 +177,7 @@ def convert_ppt_to_html_slides(ppt_path):
         
         for idx, slide in enumerate(prs.slides):
             html_content = f"""
-            <div id="slide_{idx}" class="slide-container" style="
+            <div class="slide-container" style="
                 width: 100%;
                 min-height: 500px;
                 background: white;
@@ -232,12 +245,9 @@ def convert_ppt_to_html_slides(ppt_path):
         st.error(f"Error converting PPT: {str(e)}")
         return None
 
-# Display presentation
+# Display presentation with working fullscreen
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
-    
-    # Unique ID for fullscreen container
-    container_id = f"presentation_container_{int(time.time())}"
     
     # Back button
     if st.button("◀ Back to Courses", use_container_width=False):
@@ -287,55 +297,32 @@ def display_presentation(course):
         with col5:
             # Working fullscreen button with JavaScript
             fullscreen_html = f"""
-                <button onclick="
-                    var elem = document.getElementById('{container_id}');
-                    if (elem.requestFullscreen) {{
-                        elem.requestFullscreen();
-                    }} else if (elem.webkitRequestFullscreen) {{
-                        elem.webkitRequestFullscreen();
-                    }} else if (elem.msRequestFullscreen) {{
-                        elem.msRequestFullscreen();
+                <button class="fullscreen-btn" onclick="
+                    var slideDiv = document.getElementById('current_slide_{st.session_state.slide_index}');
+                    if (slideDiv.requestFullscreen) {{
+                        slideDiv.requestFullscreen();
+                    }} else if (slideDiv.webkitRequestFullscreen) {{
+                        slideDiv.webkitRequestFullscreen();
+                    }} else if (slideDiv.msRequestFullscreen) {{
+                        slideDiv.msRequestFullscreen();
+                    }} else if (slideDiv.mozRequestFullScreen) {{
+                        slideDiv.mozRequestFullScreen();
                     }}
-                " style="
-                    background: linear-gradient(45deg, #ff69b4, #ff1493);
-                    color: white;
-                    border: none;
-                    border-radius: 25px;
-                    padding: 10px 20px;
-                    font-weight: bold;
-                    cursor: pointer;
-                    width: 100%;
-                    font-size: 16px;
                 ">
-                    🖥️ FULLSCREEN
+                    🖥️ FULLSCREEN MODE
                 </button>
             """
             st.markdown(fullscreen_html, unsafe_allow_html=True)
         
-        # Display current slide in container
+        # Display current slide with unique ID
         st.markdown("---")
-        st.markdown(f'<div id="{container_id}">', unsafe_allow_html=True)
-        st.markdown(slides_html[st.session_state.slide_index], unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
         
-        # Navigation hint
-        st.info("💡 **Tip:** Use the buttons above to navigate slides, or click FULLSCREEN for better viewing")
+        # Wrap slide content in a div with unique ID for fullscreen targeting
+        slide_html_with_id = f'<div id="current_slide_{st.session_state.slide_index}">' + slides_html[st.session_state.slide_index] + '</div>'
+        st.markdown(slide_html_with_id, unsafe_allow_html=True)
         
-        # Keyboard navigation using JavaScript
-        keyboard_js = f"""
-        <script>
-            document.addEventListener('keydown', function(e) {{
-                if (e.key === 'ArrowLeft') {{
-                    var prevButton = document.querySelector('button[kind="secondary"]:contains("◀◀ PREVIOUS")');
-                    if (prevButton) prevButton.click();
-                }} else if (e.key === 'ArrowRight') {{
-                    var nextButton = document.querySelector('button[kind="secondary"]:contains("NEXT ▶▶")');
-                    if (nextButton) nextButton.click();
-                }}
-            }});
-        </script>
-        """
-        st.markdown(keyboard_js, unsafe_allow_html=True)
+        # Keyboard navigation hint
+        st.info("💡 **Tip:** Click the FULLSCREEN MODE button for a better viewing experience!")
         
         # Download option
         with st.expander("📥 Download Original PowerPoint", expanded=False):
