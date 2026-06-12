@@ -84,6 +84,7 @@
         
         button:hover {
             transform: scale(1.02);
+            transition: transform 0.2s;
         }
         
         .stats {
@@ -122,6 +123,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: transform 0.2s;
+        }
+        
+        .course-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
         
         .course-info h3 {
@@ -154,11 +161,35 @@
         
         .filter select {
             width: 200px;
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid #ffc0cb;
+        }
+        
+        .empty-message {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 20px;
+            color: #999;
         }
         
         @media (max-width: 768px) {
             .two-columns {
                 grid-template-columns: 1fr;
+            }
+            
+            .course-card {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .course-actions {
+                margin-top: 10px;
+            }
+            
+            .course-actions button {
+                margin: 5px;
             }
         }
     </style>
@@ -181,9 +212,15 @@
                     <div class="form-group">
                         <label>🎯 Level</label>
                         <select name="level">
-                            <option>A1</option><option>A2</option><option>A3</option>
-                            <option>B1</option><option>B2</option><option>B3</option>
-                            <option>C1</option><option>C2</option><option>C3</option>
+                            <option value="A1">A1 - Beginner</option>
+                            <option value="A2">A2 - Elementary</option>
+                            <option value="A3">A3 - Pre-Intermediate</option>
+                            <option value="B1">B1 - Intermediate</option>
+                            <option value="B2">B2 - Upper Intermediate</option>
+                            <option value="B3">B3 - Advanced</option>
+                            <option value="C1">C1 - Proficient</option>
+                            <option value="C2">C2 - Mastery</option>
+                            <option value="C3">C3 - Expert</option>
                         </select>
                     </div>
                     
@@ -201,6 +238,18 @@
                 <h2>📊 Quick Stats</h2>
                 <div class="stat-number">{{ courses|length }}</div>
                 <p style="text-align: center;">Total Courses</p>
+                {% if courses|length > 0 %}
+                <div style="margin-top: 20px; text-align: center;">
+                    <p>📚 Last added: </p>
+                    <p style="font-size: 12px; color: #666;">
+                        {% for id, course in courses.items() %}
+                            {% if loop.last %}
+                                {{ course.title }} ({{ course.date }})
+                            {% endif %}
+                        {% endfor %}
+                    </p>
+                </div>
+                {% endif %}
             </div>
         </div>
         
@@ -209,25 +258,42 @@
             <h2>📚 Your Courses</h2>
             <div class="filter">
                 <select id="levelFilter" onchange="filterCourses()">
-                    <option value="all">All Levels</option>
-                    <option>A1</option><option>A2</option><option>A3</option>
-                    <option>B1</option><option>B2</option><option>B3</option>
-                    <option>C1</option><option>C2</option><option>C3</option>
+                    <option value="all">🌍 All Levels</option>
+                    <option value="A1">A1</option>
+                    <option value="A2">A2</option>
+                    <option value="A3">A3</option>
+                    <option value="B1">B1</option>
+                    <option value="B2">B2</option>
+                    <option value="B3">B3</option>
+                    <option value="C1">C1</option>
+                    <option value="C2">C2</option>
+                    <option value="C3">C3</option>
                 </select>
             </div>
             <div id="coursesContainer">
-                {% for id, course in courses.items() %}
-                <div class="course-card" data-level="{{ course.level }}">
-                    <div class="course-info">
-                        <h3>📘 {{ course.title }}</h3>
-                        <p>🎯 Level {{ course.level }} | 📅 {{ course.date }}</p>
+                {% if courses|length > 0 %}
+                    {% for id, course in courses.items() %}
+                    <div class="course-card" data-level="{{ course.level }}">
+                        <div class="course-info">
+                            <h3>📘 {{ course.title }}</h3>
+                            <p>🎯 Level {{ course.level }} | 📅 Added: {{ course.date }}</p>
+                        </div>
+                        <div class="course-actions">
+                            <a href="/view/{{ id }}">
+                                <button class="btn-view">🎬 View Course</button>
+                            </a>
+                            <a href="/delete/{{ id }}" onclick="return confirm('Are you sure you want to delete "{{ course.title }}"?')">
+                                <button class="btn-delete">🗑️ Delete</button>
+                            </a>
+                        </div>
                     </div>
-                    <div class="course-actions">
-                        <a href="/view/{{ id }}"><button class="btn-view">🎬 View</button></a>
-                        <a href="/delete/{{ id }}" onclick="return confirm('Delete this course?')"><button class="btn-delete">🗑️ Delete</button></a>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-message">
+                        <p>📭 No courses yet</p>
+                        <p style="margin-top: 10px;">✨ Upload your first course to get started! ✨</p>
                     </div>
-                </div>
-                {% endfor %}
+                {% endif %}
             </div>
         </div>
     </div>
@@ -245,6 +311,11 @@
                 }
             });
         }
+        
+        // Animation au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🌸 English Teacher Platform loaded!');
+        });
     </script>
 </body>
 </html>
