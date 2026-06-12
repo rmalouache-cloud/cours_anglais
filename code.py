@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS with working fullscreen
+# Custom CSS
 st.markdown("""
 <style>
     .stApp {
@@ -48,35 +48,6 @@ st.markdown("""
         border: 1px solid #ffc0cb;
     }
     
-    .slide-container {
-        background: white;
-        border-radius: 20px;
-        padding: 20px;
-        margin: 20px 0;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-    }
-    
-    /* Fullscreen mode styles */
-    .slide-container:fullscreen {
-        background: white;
-        padding: 40px;
-        overflow-y: auto;
-    }
-    
-    .slide-container:-webkit-full-screen {
-        background: white;
-        padding: 40px;
-        overflow-y: auto;
-    }
-    
-    .slide-container:-moz-full-screen {
-        background: white;
-        padding: 40px;
-        overflow-y: auto;
-    }
-    
     @keyframes fadeInUp {
         from { transform: translateY(20px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
@@ -84,25 +55,6 @@ st.markdown("""
     
     .fade-in {
         animation: fadeInUp 0.6s ease-out;
-    }
-    
-    /* Fullscreen button style */
-    .fullscreen-btn {
-        background: linear-gradient(45deg, #ff69b4, #ff1493);
-        color: white;
-        border: none;
-        border-radius: 25px;
-        padding: 10px 20px;
-        font-weight: bold;
-        cursor: pointer;
-        width: 100%;
-        font-size: 16px;
-        transition: all 0.3s ease;
-    }
-    
-    .fullscreen-btn:hover {
-        transform: scale(1.05);
-        box-shadow: 0 5px 15px rgba(255,20,147,0.3);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -145,8 +97,9 @@ def delete_course(course_key, course_path, images_folder):
     except:
         return False
 
-def extract_image_from_slide(slide, image_idx):
-    """Extract image from slide and convert to base64"""
+def extract_image_from_slide(slide):
+    """Extract all images from slide"""
+    images = []
     try:
         for shape in slide.shapes:
             if hasattr(shape, "image"):
@@ -161,91 +114,263 @@ def extract_image_from_slide(slide, image_idx):
                 buffered = io.BytesIO()
                 img.save(buffered, format="PNG")
                 img_base64 = base64.b64encode(buffered.getvalue()).decode()
-                return f'<img src="data:image/png;base64,{img_base64}" style="max-width: 100%; border-radius: 10px; margin: 10px 0;" />'
+                images.append(f'<img src="data:image/png;base64,{img_base64}" style="max-width: 100%; border-radius: 10px; margin: 10px 0; display: block;" />')
     except:
         pass
-    return None
+    return images
 
-# Convert PPT to HTML slides with images
-def convert_ppt_to_html_slides(ppt_path):
-    """Convert PPT to HTML slides that preserve formatting and images"""
+# Convert PPT to slides data
+def convert_ppt_to_slides_data(ppt_path):
+    """Extract all content from PPT"""
     try:
         from pptx import Presentation
         
         prs = Presentation(ppt_path)
-        slides_html = []
+        slides_data = []
         
         for idx, slide in enumerate(prs.slides):
-            html_content = f"""
-            <div class="slide-container" style="
-                width: 100%;
-                min-height: 500px;
-                background: white;
-                border-radius: 15px;
-                padding: 40px;
-                font-family: 'Segoe UI', Arial, sans-serif;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            ">
-                <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px; margin-bottom: 20px;">
-                    Slide {idx + 1}
-                </h2>
-                <div style="font-size: 18px; line-height: 1.6;">
-            """
+            slide_content = {
+                'number': idx + 1,
+                'texts': [],
+                'images': []
+            }
             
-            # Extract and organize content
-            has_title = False
-            content_items = []
+            # Extract images
+            slide_content['images'] = extract_image_from_slide(slide)
             
+            # Extract text
             for shape in slide.shapes:
-                # Check for images first
-                if hasattr(shape, "image"):
-                    img_html = extract_image_from_slide(slide, idx)
-                    if img_html:
-                        content_items.append(img_html)
-                
-                # Extract text
                 if hasattr(shape, "text") and shape.text.strip():
                     text = shape.text.strip()
-                    
-                    # Check if it's a title (often larger font or first shape)
+                    # Check if it's a title
+                    is_title = False
                     if hasattr(shape, "text_frame") and shape.text_frame.paragraphs:
                         first_para = shape.text_frame.paragraphs[0]
                         if first_para.font.size and first_para.font.size.pt >= 24:
-                            content_items.append(f"<h3 style='color: #ff69b4; margin-top: 15px;'>{text}</h3>")
-                            has_title = True
-                        else:
-                            content_items.append(f"<p style='margin: 10px 0;'>{text}</p>")
-                    else:
-                        content_items.append(f"<p style='margin: 10px 0;'>{text}</p>")
+                            is_title = True
+                    slide_content['texts'].append({
+                        'text': text,
+                        'is_title': is_title
+                    })
             
-            # If no title detected, make first text item a title
-            if not has_title and content_items:
-                for i, item in enumerate(content_items):
-                    if '<p' in item and 'margin' in item:
-                        content_items[i] = item.replace('<p', '<h3', 1).replace('</p>', '</h3>')
-                        content_items[i] = content_items[i].replace('margin: 10px 0;', 'color: #ff69b4; margin-top: 15px;')
-                        break
-            
-            # Add all content to HTML
-            for item in content_items:
-                html_content += item
-            
-            # If no content at all
-            if not content_items:
-                html_content += "<p style='color: #999; text-align: center;'>No content on this slide</p>"
-            
-            html_content += """
-                </div>
-            </div>
-            """
-            slides_html.append(html_content)
+            slides_data.append(slide_content)
         
-        return slides_html
+        return slides_data
     except Exception as e:
         st.error(f"Error converting PPT: {str(e)}")
         return None
 
-# Display presentation with working fullscreen
+# Create HTML viewer with working fullscreen
+def create_html_viewer(slides_data, current_slide, total_slides, course_title):
+    """Generate HTML with working fullscreen functionality"""
+    
+    # Get current slide data
+    slide = slides_data[current_slide]
+    
+    # Build HTML for current slide
+    slide_html = f'<div style="font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto;">'
+    
+    # Add title
+    slide_html += f'<h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">Slide {current_slide + 1} / {total_slides}</h2>'
+    
+    # Add content
+    slide_html += '<div style="font-size: 18px; line-height: 1.6;">'
+    
+    # Add texts
+    for text_item in slide['texts']:
+        if text_item['is_title']:
+            slide_html += f'<h3 style="color: #ff69b4; margin-top: 20px;">{text_item["text"]}</h3>'
+        else:
+            slide_html += f'<p style="margin: 10px 0;">{text_item["text"]}</p>'
+    
+    # Add images
+    for img in slide['images']:
+        slide_html += img
+    
+    if not slide['texts'] and not slide['images']:
+        slide_html += '<p style="color: #999; text-align: center;">No content on this slide</p>'
+    
+    slide_html += '</div></div>'
+    
+    # Create full HTML page
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{
+                margin: 0;
+                padding: 20px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 100%);
+            }}
+            
+            .presentation-container {{
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 20px;
+                padding: 30px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            }}
+            
+            .slide-content {{
+                margin: 20px 0;
+            }}
+            
+            .nav-buttons {{
+                display: flex;
+                justify-content: space-between;
+                gap: 10px;
+                margin: 20px 0;
+            }}
+            
+            button {{
+                background: linear-gradient(45deg, #ff69b4, #ff1493);
+                color: white;
+                border: none;
+                border-radius: 25px;
+                padding: 12px 25px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-size: 16px;
+            }}
+            
+            button:hover {{
+                transform: scale(1.05);
+                box-shadow: 0 5px 15px rgba(255,20,147,0.3);
+            }}
+            
+            .fullscreen-btn {{
+                background: linear-gradient(45deg, #2196F3, #1976D2);
+                width: 100%;
+            }}
+            
+            .progress-bar {{
+                width: 100%;
+                height: 10px;
+                background: #f0f0f0;
+                border-radius: 5px;
+                overflow: hidden;
+                margin: 20px 0;
+            }}
+            
+            .progress-fill {{
+                width: {((current_slide + 1) / total_slides) * 100}%;
+                height: 100%;
+                background: linear-gradient(45deg, #ff69b4, #ff1493);
+                transition: width 0.3s ease;
+            }}
+            
+            .slide-info {{
+                text-align: center;
+                margin: 10px 0;
+                color: #c2185b;
+                font-weight: bold;
+            }}
+            
+            /* Fullscreen styles */
+            .presentation-container:fullscreen {{
+                background: white;
+                padding: 40px;
+                overflow-y: auto;
+            }}
+            
+            .presentation-container:-webkit-full-screen {{
+                background: white;
+                padding: 40px;
+                overflow-y: auto;
+            }}
+            
+            .presentation-container:-moz-full-screen {{
+                background: white;
+                padding: 40px;
+                overflow-y: auto;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="presentation-container" id="presentationContainer">
+            <h1 style="text-align: center; color: #c2185b;">📖 {course_title}</h1>
+            
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            
+            <div class="slide-info">
+                Slide {current_slide + 1} of {total_slides}
+            </div>
+            
+            <div class="slide-content">
+                {slide_html}
+            </div>
+            
+            <div class="nav-buttons">
+                <button onclick="previousSlide()" {"disabled" if current_slide == 0 else ""}>
+                    ◀◀ PREVIOUS
+                </button>
+                <button onclick="nextSlide()" {"disabled" if current_slide == total_slides - 1 else ""}>
+                    NEXT ▶▶
+                </button>
+            </div>
+            
+            <button class="fullscreen-btn" onclick="toggleFullscreen()">
+                🖥️ TOGGLE FULLSCREEN
+            </button>
+        </div>
+        
+        <script>
+            function toggleFullscreen() {{
+                var elem = document.getElementById('presentationContainer');
+                if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
+                    if (elem.requestFullscreen) {{
+                        elem.requestFullscreen();
+                    }} else if (elem.webkitRequestFullscreen) {{
+                        elem.webkitRequestFullscreen();
+                    }} else if (elem.msRequestFullscreen) {{
+                        elem.msRequestFullscreen();
+                    }} else if (elem.mozRequestFullScreen) {{
+                        elem.mozRequestFullScreen();
+                    }}
+                }} else {{
+                    if (document.exitFullscreen) {{
+                        document.exitFullscreen();
+                    }} else if (document.webkitExitFullscreen) {{
+                        document.webkitExitFullscreen();
+                    }} else if (document.msExitFullscreen) {{
+                        document.msExitFullscreen();
+                    }} else if (document.mozCancelFullScreen) {{
+                        document.mozCancelFullScreen();
+                    }}
+                }}
+            }}
+            
+            function previousSlide() {{
+                if ({current_slide} > 0) {{
+                    window.parent.postMessage({{
+                        type: 'streamlit:setComponentValue',
+                        value: 'prev'
+                    }}, '*');
+                }}
+            }}
+            
+            function nextSlide() {{
+                if ({current_slide} < {total_slides - 1}) {{
+                    window.parent.postMessage({{
+                        type: 'streamlit:setComponentValue',
+                        value: 'next'
+                    }}, '*');
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    
+    return html_code
+
+# Display presentation with custom component
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
@@ -254,91 +379,58 @@ def display_presentation(course):
         st.session_state['viewing_course'] = None
         st.rerun()
     
-    # Title
-    st.markdown(f"""
-        <div style="text-align: center;">
-            <h2>📖 {course['title']}</h2>
-            <p style="color: #c2185b;">Level {course['level']} | {course['upload_date']}</p>
-        </div>
-    """, unsafe_allow_html=True)
+    # Convert PPT to slides data
+    if 'slides_data' not in st.session_state or st.session_state.get('current_course_path') != course["path"]:
+        slides_data = convert_ppt_to_slides_data(course["path"])
+        if slides_data:
+            st.session_state.slides_data = slides_data
+            st.session_state.current_slide = 0
+            st.session_state.current_course_path = course["path"]
+        else:
+            st.error("❌ Cannot display this PowerPoint")
+            return
+    
+    slides_data = st.session_state.slides_data
+    total_slides = len(slides_data)
+    
+    # Navigation buttons in Streamlit
+    col1, col2, col3 = st.columns([1, 1, 1])
+    
+    with col1:
+        if st.button("◀◀ PREVIOUS", use_container_width=True):
+            if st.session_state.current_slide > 0:
+                st.session_state.current_slide -= 1
+                st.rerun()
+    
+    with col2:
+        st.markdown(f"<h3 style='text-align: center;'>Slide {st.session_state.current_slide + 1} / {total_slides}</h3>", unsafe_allow_html=True)
+        progress = (st.session_state.current_slide + 1) / total_slides
+        st.progress(progress)
+    
+    with col3:
+        if st.button("NEXT ▶▶", use_container_width=True):
+            if st.session_state.current_slide < total_slides - 1:
+                st.session_state.current_slide += 1
+                st.rerun()
     
     st.markdown("---")
     
-    # Convert PPT to HTML slides
-    slides_html = convert_ppt_to_html_slides(course["path"])
+    # Create and display HTML viewer with working fullscreen
+    html_viewer = create_html_viewer(
+        slides_data, 
+        st.session_state.current_slide, 
+        total_slides,
+        course['title']
+    )
     
-    if slides_html:
-        # Initialize slide index
-        if 'slide_index' not in st.session_state:
-            st.session_state.slide_index = 0
-        
-        # Navigation buttons
-        col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
-        
-        with col1:
-            if st.button("◀◀ PREVIOUS", use_container_width=True):
-                if st.session_state.slide_index > 0:
-                    st.session_state.slide_index -= 1
-                    st.rerun()
-        
-        with col2:
-            st.markdown(f"<h3 style='text-align: center;'>Slide {st.session_state.slide_index + 1} / {len(slides_html)}</h3>", unsafe_allow_html=True)
-        
-        with col3:
-            progress = (st.session_state.slide_index + 1) / len(slides_html)
-            st.progress(progress)
-        
-        with col4:
-            if st.button("NEXT ▶▶", use_container_width=True):
-                if st.session_state.slide_index < len(slides_html) - 1:
-                    st.session_state.slide_index += 1
-                    st.rerun()
-        
-        with col5:
-            # Working fullscreen button with JavaScript
-            fullscreen_html = f"""
-                <button class="fullscreen-btn" onclick="
-                    var slideDiv = document.getElementById('current_slide_{st.session_state.slide_index}');
-                    if (slideDiv.requestFullscreen) {{
-                        slideDiv.requestFullscreen();
-                    }} else if (slideDiv.webkitRequestFullscreen) {{
-                        slideDiv.webkitRequestFullscreen();
-                    }} else if (slideDiv.msRequestFullscreen) {{
-                        slideDiv.msRequestFullscreen();
-                    }} else if (slideDiv.mozRequestFullScreen) {{
-                        slideDiv.mozRequestFullScreen();
-                    }}
-                ">
-                    🖥️ FULLSCREEN MODE
-                </button>
-            """
-            st.markdown(fullscreen_html, unsafe_allow_html=True)
-        
-        # Display current slide with unique ID
-        st.markdown("---")
-        
-        # Wrap slide content in a div with unique ID for fullscreen targeting
-        slide_html_with_id = f'<div id="current_slide_{st.session_state.slide_index}">' + slides_html[st.session_state.slide_index] + '</div>'
-        st.markdown(slide_html_with_id, unsafe_allow_html=True)
-        
-        # Keyboard navigation hint
-        st.info("💡 **Tip:** Click the FULLSCREEN MODE button for a better viewing experience!")
-        
-        # Download option
-        with st.expander("📥 Download Original PowerPoint", expanded=False):
-            with open(course["path"], "rb") as f:
-                st.download_button(
-                    label="Download PPT File",
-                    data=f,
-                    file_name=course["filename"],
-                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                )
+    # Display the HTML component
+    st.components.v1.html(html_viewer, height=700, scrolling=True)
     
-    else:
-        st.error("❌ Cannot display this PowerPoint. Please make sure the file is valid and has content.")
+    # Download option
+    with st.expander("📥 Download Original PowerPoint", expanded=False):
         with open(course["path"], "rb") as f:
             st.download_button(
-                label="📥 Download PowerPoint",
+                label="Download PPT File",
                 data=f,
                 file_name=course["filename"],
                 mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
@@ -483,6 +575,9 @@ def teacher_mode(metadata):
                     """, unsafe_allow_html=True)
                     
                     if st.button(f"🎬 View & Present", key=f"view_{key}"):
+                        # Reset slide data when viewing new course
+                        if 'slides_data' in st.session_state:
+                            del st.session_state.slides_data
                         st.session_state.viewing_course = course
                         st.rerun()
                 
@@ -542,6 +637,9 @@ def student_mode(metadata):
                     """, unsafe_allow_html=True)
                     
                     if st.button(f"🎬 View Course", key=f"view_student_{key}"):
+                        # Reset slide data when viewing new course
+                        if 'slides_data' in st.session_state:
+                            del st.session_state.slides_data
                         st.session_state.viewing_course = course
                         st.rerun()
                 
