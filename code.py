@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 from PIL import Image
 import io
+import base64
 
 # Page configuration
 st.set_page_config(
@@ -47,23 +48,13 @@ st.markdown("""
         border: 1px solid #ffc0cb;
     }
     
-    .course-card:hover {
-        transform: translateY(-5px);
-    }
-    
-    .slide-image {
-        width: 100%;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        margin: 10px 0;
-    }
-    
     .slide-container {
         background: white;
         border-radius: 20px;
         padding: 20px;
         margin: 20px 0;
         text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
     
     @keyframes fadeInUp {
@@ -74,7 +65,33 @@ st.markdown("""
     .fade-in {
         animation: fadeInUp 0.6s ease-out;
     }
+    
+    /* Fullscreen styles */
+    .fullscreen-enabled {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 9999 !important;
+        background: white !important;
+        overflow-y: auto !important;
+        padding: 20px !important;
+    }
 </style>
+
+<script>
+    function toggleFullscreen(elementId) {
+        var elem = document.getElementById(elementId);
+        if (!document.fullscreenElement) {
+            elem.requestFullscreen().catch(err => {
+                console.log(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+</script>
 """, unsafe_allow_html=True)
 
 # Initialize folders
@@ -104,7 +121,6 @@ def delete_course(course_key, course_path, images_folder):
     try:
         if os.path.exists(course_path):
             os.remove(course_path)
-        # Delete images folder
         if os.path.exists(images_folder):
             import shutil
             shutil.rmtree(images_folder)
@@ -116,9 +132,30 @@ def delete_course(course_key, course_path, images_folder):
     except:
         return False
 
-# Convert PPT to images using python-pptx (extract text with basic formatting)
+def extract_image_from_slide(slide, image_idx):
+    """Extract image from slide and convert to base64"""
+    try:
+        for shape in slide.shapes:
+            if hasattr(shape, "image"):
+                image_bytes = shape.image.blob
+                img = Image.open(io.BytesIO(image_bytes))
+                # Resize if too large
+                if img.width > 800:
+                    ratio = 800 / img.width
+                    new_size = (800, int(img.height * ratio))
+                    img = img.resize(new_size, Image.Resampling.LANCZOS)
+                
+                buffered = io.BytesIO()
+                img.save(buffered, format="PNG")
+                img_base64 = base64.b64encode(buffered.getvalue()).decode()
+                return f'<img src="data:image/png;base64,{img_base64}" style="max-width: 100%; border-radius: 10px; margin: 10px 0;" />'
+    except:
+        pass
+    return None
+
+# Convert PPT to HTML slides with images
 def convert_ppt_to_html_slides(ppt_path):
-    """Convert PPT to HTML slides that preserve formatting"""
+    """Convert PPT to HTML slides that preserve formatting and images"""
     try:
         from pptx import Presentation
         
@@ -127,7 +164,7 @@ def convert_ppt_to_html_slides(ppt_path):
         
         for idx, slide in enumerate(prs.slides):
             html_content = f"""
-            <div style="
+            <div id="slide_{idx}" class="slide-container" style="
                 width: 100%;
                 min-height: 500px;
                 background: white;
@@ -136,20 +173,53 @@ def convert_ppt_to_html_slides(ppt_path):
                 font-family: 'Segoe UI', Arial, sans-serif;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             ">
-                <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">
+                <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px; margin-bottom: 20px;">
                     Slide {idx + 1}
                 </h2>
-                <div style="font-size: 20px; line-height: 1.6; margin-top: 20px;">
+                <div style="font-size: 18px; line-height: 1.6;">
             """
             
-            # Extract text from shapes
+            # Extract and organize content
+            has_title = False
+            content_items = []
+            
             for shape in slide.shapes:
+                # Check for images first
+                if hasattr(shape, "image"):
+                    img_html = extract_image_from_slide(slide, idx)
+                    if img_html:
+                        content_items.append(img_html)
+                
+                # Extract text
                 if hasattr(shape, "text") and shape.text.strip():
-                    # Check if it's a title (usually first shape)
-                    if idx == 0 and shape == slide.shapes[0]:
-                        html_content += f"<h1 style='color: #ff69b4;'>{shape.text}</h1>"
+                    text = shape.text.strip()
+                    
+                    # Check if it's a title (often larger font or first shape)
+                    if hasattr(shape, "text_frame") and shape.text_frame.paragraphs:
+                        first_para = shape.text_frame.paragraphs[0]
+                        if first_para.font.size and first_para.font.size.pt >= 24:
+                            content_items.append(f"<h3 style='color: #ff69b4; margin-top: 15px;'>{text}</h3>")
+                            has_title = True
+                        else:
+                            content_items.append(f"<p style='margin: 10px 0;'>{text}</p>")
                     else:
-                        html_content += f"<p>{shape.text}</p>"
+                        content_items.append(f"<p style='margin: 10px 0;'>{text}</p>")
+            
+            # If no title detected, make first text item a title
+            if not has_title and content_items:
+                for i, item in enumerate(content_items):
+                    if '<p' in item and 'margin' in item:
+                        content_items[i] = item.replace('<p', '<h3', 1).replace('</p>', '</h3>')
+                        content_items[i] = content_items[i].replace('margin: 10px 0;', 'color: #ff69b4; margin-top: 15px;')
+                        break
+            
+            # Add all content to HTML
+            for item in content_items:
+                html_content += item
+            
+            # If no content at all
+            if not content_items:
+                html_content += "<p style='color: #999; text-align: center;'>No content on this slide</p>"
             
             html_content += """
                 </div>
@@ -159,11 +229,15 @@ def convert_ppt_to_html_slides(ppt_path):
         
         return slides_html
     except Exception as e:
+        st.error(f"Error converting PPT: {str(e)}")
         return None
 
 # Display presentation
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+    
+    # Unique ID for fullscreen container
+    container_id = f"presentation_container_{int(time.time())}"
     
     # Back button
     if st.button("◀ Back to Courses", use_container_width=False):
@@ -180,7 +254,7 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # Check if we have HTML slides cached
+    # Convert PPT to HTML slides
     slides_html = convert_ppt_to_html_slides(course["path"])
     
     if slides_html:
@@ -211,9 +285,18 @@ def display_presentation(course):
                     st.rerun()
         
         with col5:
-            # Fullscreen button
-            st.markdown("""
-                <button onclick="document.documentElement.requestFullscreen()" style="
+            # Working fullscreen button with JavaScript
+            fullscreen_html = f"""
+                <button onclick="
+                    var elem = document.getElementById('{container_id}');
+                    if (elem.requestFullscreen) {{
+                        elem.requestFullscreen();
+                    }} else if (elem.webkitRequestFullscreen) {{
+                        elem.webkitRequestFullscreen();
+                    }} else if (elem.msRequestFullscreen) {{
+                        elem.msRequestFullscreen();
+                    }}
+                " style="
                     background: linear-gradient(45deg, #ff69b4, #ff1493);
                     color: white;
                     border: none;
@@ -222,19 +305,39 @@ def display_presentation(course):
                     font-weight: bold;
                     cursor: pointer;
                     width: 100%;
+                    font-size: 16px;
                 ">
                     🖥️ FULLSCREEN
                 </button>
-            """, unsafe_allow_html=True)
+            """
+            st.markdown(fullscreen_html, unsafe_allow_html=True)
         
-        # Display current slide
+        # Display current slide in container
         st.markdown("---")
+        st.markdown(f'<div id="{container_id}">', unsafe_allow_html=True)
         st.markdown(slides_html[st.session_state.slide_index], unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # Navigation hint
-        st.info("💡 **Tip:** Use ← and → arrow keys on your keyboard to navigate slides")
+        st.info("💡 **Tip:** Use the buttons above to navigate slides, or click FULLSCREEN for better viewing")
         
-        # Download option (in case they want the original)
+        # Keyboard navigation using JavaScript
+        keyboard_js = f"""
+        <script>
+            document.addEventListener('keydown', function(e) {{
+                if (e.key === 'ArrowLeft') {{
+                    var prevButton = document.querySelector('button[kind="secondary"]:contains("◀◀ PREVIOUS")');
+                    if (prevButton) prevButton.click();
+                }} else if (e.key === 'ArrowRight') {{
+                    var nextButton = document.querySelector('button[kind="secondary"]:contains("NEXT ▶▶")');
+                    if (nextButton) nextButton.click();
+                }}
+            }});
+        </script>
+        """
+        st.markdown(keyboard_js, unsafe_allow_html=True)
+        
+        # Download option
         with st.expander("📥 Download Original PowerPoint", expanded=False):
             with open(course["path"], "rb") as f:
                 st.download_button(
@@ -245,7 +348,7 @@ def display_presentation(course):
                 )
     
     else:
-        st.error("❌ Cannot display this PowerPoint. Please make sure the file is valid.")
+        st.error("❌ Cannot display this PowerPoint. Please make sure the file is valid and has content.")
         with open(course["path"], "rb") as f:
             st.download_button(
                 label="📥 Download PowerPoint",
@@ -330,16 +433,13 @@ def teacher_mode(metadata):
         
         if st.button("💖 Save Course", use_container_width=True):
             if title and uploaded_file:
-                # Create folder for this course
                 course_folder = Path(f"courses/Level_{level}/{level}{sub_level}")
                 course_folder.mkdir(parents=True, exist_ok=True)
                 
-                # Save file
                 save_path = course_folder / uploaded_file.name
                 with open(save_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 
-                # Save metadata
                 course_key = f"{full_level}_{uploaded_file.name}"
                 metadata[course_key] = {
                     "title": title,
@@ -406,8 +506,7 @@ def teacher_mode(metadata):
                                 label="Click to download",
                                 data=f,
                                 file_name=course["filename"],
-                                key=f"down_btn_{key}",
-                                hidden=True
+                                key=f"down_btn_{key}"
                             )
                 
                 with col3:
