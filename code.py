@@ -160,9 +160,9 @@ def convert_ppt_to_slides_data(ppt_path):
         st.error(f"Error converting PPT: {str(e)}")
         return None
 
-# Create HTML viewer with working fullscreen
+# Create HTML viewer with working fullscreen and navigation
 def create_html_viewer(slides_data, current_slide, total_slides, course_title):
-    """Generate HTML with working fullscreen functionality"""
+    """Generate HTML with working fullscreen and navigation"""
     
     # Get current slide data
     slide = slides_data[current_slide]
@@ -192,7 +192,7 @@ def create_html_viewer(slides_data, current_slide, total_slides, course_title):
     
     slide_html += '</div></div>'
     
-    # Create full HTML page
+    # Create full HTML page with working navigation
     html_code = f"""
     <!DOCTYPE html>
     <html>
@@ -212,10 +212,12 @@ def create_html_viewer(slides_data, current_slide, total_slides, course_title):
                 border-radius: 20px;
                 padding: 30px;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
             }}
             
             .slide-content {{
                 margin: 20px 0;
+                min-height: 400px;
             }}
             
             .nav-buttons {{
@@ -235,16 +237,23 @@ def create_html_viewer(slides_data, current_slide, total_slides, course_title):
                 cursor: pointer;
                 transition: all 0.3s ease;
                 font-size: 16px;
+                flex: 1;
             }}
             
-            button:hover {{
+            button:hover:not(:disabled) {{
                 transform: scale(1.05);
                 box-shadow: 0 5px 15px rgba(255,20,147,0.3);
+            }}
+            
+            button:disabled {{
+                opacity: 0.5;
+                cursor: not-allowed;
             }}
             
             .fullscreen-btn {{
                 background: linear-gradient(45deg, #2196F3, #1976D2);
                 width: 100%;
+                margin-top: 10px;
             }}
             
             .progress-bar {{
@@ -268,6 +277,7 @@ def create_html_viewer(slides_data, current_slide, total_slides, course_title):
                 margin: 10px 0;
                 color: #c2185b;
                 font-weight: bold;
+                font-size: 16px;
             }}
             
             /* Fullscreen styles */
@@ -275,18 +285,31 @@ def create_html_viewer(slides_data, current_slide, total_slides, course_title):
                 background: white;
                 padding: 40px;
                 overflow-y: auto;
+                max-width: none;
+                height: 100vh;
             }}
             
             .presentation-container:-webkit-full-screen {{
                 background: white;
                 padding: 40px;
                 overflow-y: auto;
+                max-width: none;
+                height: 100vh;
             }}
             
             .presentation-container:-moz-full-screen {{
                 background: white;
                 padding: 40px;
                 overflow-y: auto;
+                max-width: none;
+                height: 100vh;
+            }}
+            
+            .slide-number {{
+                text-align: center;
+                margin-top: 20px;
+                color: #999;
+                font-size: 14px;
             }}
         </style>
     </head>
@@ -302,26 +325,104 @@ def create_html_viewer(slides_data, current_slide, total_slides, course_title):
                 Slide {current_slide + 1} of {total_slides}
             </div>
             
-            <div class="slide-content">
+            <div class="slide-content" id="slideContent">
                 {slide_html}
             </div>
             
             <div class="nav-buttons">
-                <button onclick="previousSlide()" {"disabled" if current_slide == 0 else ""}>
+                <button id="prevBtn" {"disabled" if current_slide == 0 else ""}>
                     ◀◀ PREVIOUS
                 </button>
-                <button onclick="nextSlide()" {"disabled" if current_slide == total_slides - 1 else ""}>
+                <button id="nextBtn" {"disabled" if current_slide == total_slides - 1 else ""}>
                     NEXT ▶▶
                 </button>
             </div>
             
-            <button class="fullscreen-btn" onclick="toggleFullscreen()">
+            <button class="fullscreen-btn" id="fullscreenBtn">
                 🖥️ TOGGLE FULLSCREEN
             </button>
+            
+            <div class="slide-number">
+                💡 Tip: Use the buttons above to navigate
+            </div>
         </div>
         
         <script>
-            function toggleFullscreen() {{
+            // Store current slide index
+            let currentSlideIndex = {current_slide};
+            const totalSlides = {total_slides};
+            
+            // Get all slide data from Python
+            const slidesData = {json.dumps(slides_data)};
+            
+            // Function to update slide content
+            function updateSlide(index) {{
+                const slide = slidesData[index];
+                const slideContent = document.getElementById('slideContent');
+                const progressFill = document.querySelector('.progress-fill');
+                const slideInfo = document.querySelector('.slide-info');
+                const prevBtn = document.getElementById('prevBtn');
+                const nextBtn = document.getElementById('nextBtn');
+                
+                // Update progress
+                const progressPercent = ((index + 1) / totalSlides) * 100;
+                progressFill.style.width = progressPercent + '%';
+                
+                // Update slide info
+                slideInfo.innerHTML = `Slide ${{index + 1}} of ${{totalSlides}}`;
+                
+                // Build new slide HTML
+                let slideHtml = `<div style="font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto;">`;
+                slideHtml += `<h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">Slide ${{index + 1}} / ${{totalSlides}}</h2>`;
+                slideHtml += `<div style="font-size: 18px; line-height: 1.6;">`;
+                
+                // Add texts
+                for (const textItem of slide.texts) {{
+                    if (textItem.is_title) {{
+                        slideHtml += `<h3 style="color: #ff69b4; margin-top: 20px;">${{textItem.text}}</h3>`;
+                    }} else {{
+                        slideHtml += `<p style="margin: 10px 0;">${{textItem.text}}</p>`;
+                    }}
+                }}
+                
+                // Add images
+                for (const img of slide.images) {{
+                    slideHtml += img;
+                }}
+                
+                if (slide.texts.length === 0 && slide.images.length === 0) {{
+                    slideHtml += '<p style="color: #999; text-align: center;">No content on this slide</p>';
+                }}
+                
+                slideHtml += `</div></div>`;
+                
+                // Update content
+                slideContent.innerHTML = slideHtml;
+                
+                // Update button states
+                prevBtn.disabled = (index === 0);
+                nextBtn.disabled = (index === totalSlides - 1);
+                
+                // Update current index
+                currentSlideIndex = index;
+            }}
+            
+            // Previous button
+            document.getElementById('prevBtn').addEventListener('click', function() {{
+                if (currentSlideIndex > 0) {{
+                    updateSlide(currentSlideIndex - 1);
+                }}
+            }});
+            
+            // Next button
+            document.getElementById('nextBtn').addEventListener('click', function() {{
+                if (currentSlideIndex < totalSlides - 1) {{
+                    updateSlide(currentSlideIndex + 1);
+                }}
+            }});
+            
+            // Fullscreen button
+            document.getElementById('fullscreenBtn').addEventListener('click', function() {{
                 var elem = document.getElementById('presentationContainer');
                 if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
                     if (elem.requestFullscreen) {{
@@ -344,25 +445,20 @@ def create_html_viewer(slides_data, current_slide, total_slides, course_title):
                         document.mozCancelFullScreen();
                     }}
                 }}
-            }}
+            }});
             
-            function previousSlide() {{
-                if ({current_slide} > 0) {{
-                    window.parent.postMessage({{
-                        type: 'streamlit:setComponentValue',
-                        value: 'prev'
-                    }}, '*');
+            // Keyboard navigation
+            document.addEventListener('keydown', function(e) {{
+                if (e.key === 'ArrowLeft') {{
+                    if (currentSlideIndex > 0) {{
+                        updateSlide(currentSlideIndex - 1);
+                    }}
+                }} else if (e.key === 'ArrowRight') {{
+                    if (currentSlideIndex < totalSlides - 1) {{
+                        updateSlide(currentSlideIndex + 1);
+                    }}
                 }}
-            }}
-            
-            function nextSlide() {{
-                if ({current_slide} < {total_slides - 1}) {{
-                    window.parent.postMessage({{
-                        type: 'streamlit:setComponentValue',
-                        value: 'next'
-                    }}, '*');
-                }}
-            }}
+            }});
         </script>
     </body>
     </html>
@@ -384,41 +480,18 @@ def display_presentation(course):
         slides_data = convert_ppt_to_slides_data(course["path"])
         if slides_data:
             st.session_state.slides_data = slides_data
-            st.session_state.current_slide = 0
             st.session_state.current_course_path = course["path"]
         else:
-            st.error("❌ Cannot display this PowerPoint")
+            st.error("❌ Cannot display this PowerPoint. Please make sure the file is valid.")
             return
     
     slides_data = st.session_state.slides_data
     total_slides = len(slides_data)
     
-    # Navigation buttons in Streamlit
-    col1, col2, col3 = st.columns([1, 1, 1])
-    
-    with col1:
-        if st.button("◀◀ PREVIOUS", use_container_width=True):
-            if st.session_state.current_slide > 0:
-                st.session_state.current_slide -= 1
-                st.rerun()
-    
-    with col2:
-        st.markdown(f"<h3 style='text-align: center;'>Slide {st.session_state.current_slide + 1} / {total_slides}</h3>", unsafe_allow_html=True)
-        progress = (st.session_state.current_slide + 1) / total_slides
-        st.progress(progress)
-    
-    with col3:
-        if st.button("NEXT ▶▶", use_container_width=True):
-            if st.session_state.current_slide < total_slides - 1:
-                st.session_state.current_slide += 1
-                st.rerun()
-    
-    st.markdown("---")
-    
-    # Create and display HTML viewer with working fullscreen
+    # Create and display HTML viewer with all functionality built-in
     html_viewer = create_html_viewer(
         slides_data, 
-        st.session_state.current_slide, 
+        0,  # Start from first slide
         total_slides,
         course['title']
     )
