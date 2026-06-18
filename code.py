@@ -65,7 +65,6 @@ st.markdown("""
         animation: fadeInUp 0.6s ease-out;
     }
     
-    /* Logo animation */
     @keyframes float {
         0% { transform: translateY(0px) rotate(0deg); }
         50% { transform: translateY(-15px) rotate(5deg); }
@@ -90,11 +89,6 @@ st.markdown("""
     @keyframes shimmer {
         0% { background-position: -200% center; }
         100% { background-position: 200% center; }
-    }
-    
-    @keyframes rainbow {
-        0% { filter: hue-rotate(0deg); }
-        100% { filter: hue-rotate(360deg); }
     }
     
     .floating-logo {
@@ -126,37 +120,6 @@ st.markdown("""
         display: inline-block;
     }
     
-    .floating-balls {
-        animation: float 2.5s ease-in-out infinite;
-        display: inline-block;
-    }
-    
-    .floating-balls:nth-child(1) { animation-delay: 0s; }
-    .floating-balls:nth-child(2) { animation-delay: 0.3s; }
-    .floating-balls:nth-child(3) { animation-delay: 0.6s; }
-    .floating-balls:nth-child(4) { animation-delay: 0.9s; }
-    
-    /* Ball animation container */
-    .ball-container {
-        display: inline-block;
-        animation: float 3s ease-in-out infinite;
-    }
-    
-    .ball-container:hover {
-        animation-play-state: paused;
-        transform: scale(1.2);
-    }
-    
-    /* Gradient text animation */
-    .animated-gradient {
-        background: linear-gradient(45deg, #ff69b4, #ff1493, #ff69b4);
-        background-size: 200% auto;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: shimmer 2s linear infinite;
-    }
-    
-    /* Hover animations for cards */
     .hover-lift {
         transition: all 0.3s ease;
     }
@@ -165,10 +128,17 @@ st.markdown("""
         transform: translateY(-5px) scale(1.02);
         box-shadow: 0 10px 30px rgba(255,20,147,0.2);
     }
+    
+    /* Welcome section animation */
+    .welcome-section {
+        animation: fadeInUp 1s ease-out;
+        text-align: center;
+        padding: 40px 20px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize folders
+# Initialize folders with sample data
 def init_folders():
     levels = ["A", "B", "C"]
     sub_levels = ["1", "2", "3"]
@@ -178,11 +148,50 @@ def init_folders():
             Path(f"courses/Level_{level}/{level}{sub}/images").mkdir(parents=True, exist_ok=True)
     Path("data").mkdir(exist_ok=True)
     Path("courses/pdf_pages").mkdir(parents=True, exist_ok=True)
+    
+    # Create sample metadata if it doesn't exist
+    metadata_path = Path("data/courses_metadata.json")
+    if not metadata_path.exists():
+        sample_metadata = {
+            "A1_sample_course": {
+                "title": "Introduction to English - Sample",
+                "description": "A beginner-friendly introduction to English language basics. Perfect for starting your English journey!",
+                "level": "A1",
+                "path": "",
+                "filename": "sample.pdf",
+                "upload_date": time.strftime("%Y-%m-%d %H:%M"),
+                "type": "pdf",
+                "is_sample": True
+            },
+            "A2_sample_course": {
+                "title": "Everyday Conversations - Sample",
+                "description": "Learn practical English for daily conversations, greetings, and common phrases.",
+                "level": "A2",
+                "path": "",
+                "filename": "sample.pdf",
+                "upload_date": time.strftime("%Y-%m-%d %H:%M"),
+                "type": "pdf",
+                "is_sample": True
+            },
+            "B1_sample_course": {
+                "title": "Grammar Mastery - Sample",
+                "description": "Master English grammar with clear explanations and practical examples.",
+                "level": "B1",
+                "path": "",
+                "filename": "sample.pdf",
+                "upload_date": time.strftime("%Y-%m-%d %H:%M"),
+                "type": "pdf",
+                "is_sample": True
+            }
+        }
+        with open(metadata_path, "w") as f:
+            json.dump(sample_metadata, f, indent=4)
 
 # Load metadata
 def load_metadata():
-    if os.path.exists("data/courses_metadata.json"):
-        with open("data/courses_metadata.json", "r") as f:
+    metadata_path = Path("data/courses_metadata.json")
+    if metadata_path.exists():
+        with open(metadata_path, "r") as f:
             return json.load(f)
     return {}
 
@@ -269,11 +278,10 @@ def convert_pdf_to_base64_images(pdf_path, course_key):
         st.error(f"Erreur lors du traitement du PDF : {str(e)}")
         return None
 
-# Create HTML viewer complet avec bouton fullscreen EN HAUT
+# Create HTML viewer
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
     """Generate complete HTML with fullscreen button at top and navigation below"""
     
-    # Get current image
     current_img = images_base64[current_page]
     
     html_code = f"""
@@ -323,33 +331,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 justify-content: center;
             }}
             
-            .presentation-container:-webkit-full-screen {{
-                max-width: 100%;
-                width: 100vw;
-                height: 100vh;
-                border-radius: 0;
-                padding: 20px;
-                overflow-y: auto;
-                background: white;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-            }}
-            
-            .presentation-container:-moz-full-screen {{
-                max-width: 100%;
-                width: 100vw;
-                height: 100vh;
-                border-radius: 0;
-                padding: 20px;
-                overflow-y: auto;
-                background: white;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-            }}
-            
-            /* Style du bouton fullscreen EN HAUT */
             .fullscreen-top {{
                 display: flex;
                 justify-content: flex-end;
@@ -510,7 +491,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
     </head>
     <body>
         <div class="presentation-container" id="presentationContainer">
-            <!-- FULLSCREEN BUTTON EN HAUT -->
             <div class="fullscreen-top">
                 <button class="btn-fullscreen" id="fullscreenBtn">
                     🖥️ PLEIN ÉCRAN
@@ -586,7 +566,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 }}
             }});
             
-            // Fullscreen - le bouton est dans le même document !
             document.getElementById('fullscreenBtn').addEventListener('click', function() {{
                 if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
                     if (container.requestFullscreen) {{
@@ -629,14 +608,12 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
-    # Back button
     if st.button("◀ Back to Courses", use_container_width=False):
         st.session_state['viewing_course'] = None
         if 'pdf_images' in st.session_state:
             del st.session_state.pdf_images
         st.rerun()
     
-    # Title with animated emojis
     st.markdown(f"""
         <div style="text-align: center;">
             <h2>
@@ -655,10 +632,8 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # Generate unique key for this course
     course_key = f"{course['level']}_{course['filename']}".replace('.pdf', '')
     
-    # Check if we have PDF images cached
     if 'pdf_images' not in st.session_state or st.session_state.get('current_pdf_key') != course_key:
         with st.spinner("🔄 Conversion du PDF en cours..."):
             images_base64 = convert_pdf_to_base64_images(course["path"], course_key)
@@ -680,15 +655,10 @@ def display_presentation(course):
     images_base64 = st.session_state.pdf_images
     total_pages = len(images_base64)
     
-    # Initialize page index
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 0
     
-    # Affichage du numéro de page et progression (simplifié)
     col1, col2, col3 = st.columns([1, 3, 1])
-    
-    with col1:
-        st.write("")
     
     with col2:
         st.markdown(f"""
@@ -701,12 +671,8 @@ def display_presentation(course):
         progress = (st.session_state.current_page + 1) / total_pages
         st.progress(progress)
     
-    with col3:
-        st.write("")
-    
     st.markdown("---")
     
-    # Create HTML viewer complet (fullscreen + navigation)
     html_viewer = create_html_viewer(
         images_base64,
         st.session_state.current_page,
@@ -714,10 +680,8 @@ def display_presentation(course):
         course['title']
     )
     
-    # Display the HTML component
     st.components.v1.html(html_viewer, height=780, scrolling=True)
     
-    # Download option
     with st.expander("📥 Télécharger le PDF original", expanded=False):
         with open(course["path"], "rb") as f:
             st.download_button(
@@ -734,7 +698,7 @@ def main():
     if 'viewing_course' not in st.session_state:
         st.session_state.viewing_course = None
     
-    # Title with animated emojis
+    # Animated title
     st.markdown("""
         <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
             <h1>
@@ -750,7 +714,7 @@ def main():
         </div>
     """, unsafe_allow_html=True)
     
-    # Animated icons row
+    # Animated icons
     st.markdown("""
         <div style="text-align: center; margin-bottom: 20px; font-size: 30px;">
             <span class="floating-logo">📖</span> 
@@ -797,6 +761,27 @@ def main():
 
 def teacher_mode(metadata):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+    
+    # Welcome message
+    if not metadata or all(c.get('is_sample', False) for c in metadata.values()):
+        st.markdown("""
+            <div class="welcome-section">
+                <h2>
+                    <span class="floating-logo">🎉</span> 
+                    Welcome to Your English Platform! 
+                    <span class="floating-logo" style="animation-delay: 0.5s;">🎉</span>
+                </h2>
+                <p style="font-size: 18px; color: #c2185b;">
+                    Start by uploading your first course below! 
+                    <span class="bouncing-icon">⬇️</span>
+                </p>
+                <div style="font-size: 50px; margin: 20px 0;">
+                    <span class="floating-logo">📚</span>
+                    <span class="floating-logo" style="animation-delay: 0.3s;">✨</span>
+                    <span class="floating-logo" style="animation-delay: 0.6s;">🌟</span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
     
     col1, col2 = st.columns([2, 1])
     
@@ -850,12 +835,13 @@ def teacher_mode(metadata):
     
     with col2:
         st.subheader("📊 Quick Stats")
-        total_courses = len(metadata)
+        real_courses = [c for c in metadata.values() if not c.get('is_sample', False)]
+        total_courses = len(real_courses)
         st.info(f"📚 **Total courses:** {total_courses}")
         
-        if metadata:
+        if real_courses:
             levels_count = {}
-            for course in metadata.values():
+            for course in real_courses:
                 level = course["level"]
                 levels_count[level] = levels_count.get(level, 0) + 1
             
@@ -866,10 +852,13 @@ def teacher_mode(metadata):
     st.markdown("---")
     st.subheader("📚 Manage Your Courses")
     
-    if metadata:
-        filter_level = st.selectbox("Filter by level:", ["All"] + sorted(set(c["level"] for c in metadata.values())))
+    # Filter out sample courses from display
+    real_courses = {k: v for k, v in metadata.items() if not v.get('is_sample', False)}
+    
+    if real_courses:
+        filter_level = st.selectbox("Filter by level:", ["All"] + sorted(set(c["level"] for c in real_courses.values())))
         
-        for key, course in metadata.items():
+        for key, course in real_courses.items():
             if filter_level != "All" and course["level"] != filter_level:
                 continue
                 
@@ -915,7 +904,19 @@ def teacher_mode(metadata):
                             time.sleep(0.5)
                             st.rerun()
     else:
-        st.info("🌸 No courses yet. Upload your first course above!")
+        st.info("""
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 40px;">
+                    <span class="floating-logo">🌸</span>
+                    <span class="floating-logo" style="animation-delay: 0.3s;">📚</span>
+                    <span class="floating-logo" style="animation-delay: 0.6s;">✨</span>
+                </div>
+                <p style="font-size: 18px; color: #c2185b;">
+                    No courses yet. Upload your first course above! 
+                    <span class="bouncing-icon">⬆️</span>
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -932,7 +933,9 @@ def student_mode(metadata):
     
     full_level = f"{level}{sub_level}"
     
-    available_courses = {k: v for k, v in metadata.items() if v["level"] == full_level}
+    # Show real courses only
+    real_courses = {k: v for k, v in metadata.items() if not v.get('is_sample', False)}
+    available_courses = {k: v for k, v in real_courses.items() if v["level"] == full_level}
     
     if available_courses:
         st.success(f"✨ Found {len(available_courses)} course(s) for Level {full_level} ✨")
@@ -946,41 +949,4 @@ def student_mode(metadata):
                         <div style="background: #fff0f5; padding: 15px; border-radius: 15px; transition: all 0.3s ease;">
                             <strong>💭 Description:</strong><br>
                             {course['description']}<br><br>
-                            <strong>📅 Uploaded:</strong> {course['upload_date']}<br>
-                            <strong>🎯 Level:</strong> {course['level']}<br>
-                            <strong>📄 Type:</strong> PDF Document
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if st.button(f"🎬 View Course", key=f"view_student_{key}"):
-                        if 'pdf_images' in st.session_state:
-                            del st.session_state.pdf_images
-                        if 'current_pdf_key' in st.session_state:
-                            del st.session_state.current_pdf_key
-                        st.session_state.viewing_course = course
-                        st.rerun()
-                
-                with col2:
-                    with open(course["path"], "rb") as f:
-                        st.download_button(
-                            label="📥 Download Course",
-                            data=f,
-                            file_name=course["filename"],
-                            mime="application/pdf",
-                            use_container_width=True,
-                            key=f"student_download_{key}"
-                        )
-                
-                if st.button(f"💡 Get a tip", key=f"tip_{key}"):
-                    tips = [
-                        "✨ Take notes while reading!",
-                        "💕 Practice with a friend!",
-                        "⭐ Review key vocabulary after!",
-                        "🌸 Ask questions if something is unclear!"
-                    ]
-                    import random
-                    tip_emoji = random.choice(["💖", "✨", "🌟", "💫"])
-                    st.info(f"{tip_emoji} Tip: {random.choice(tips)}")
-    else:
-        st.warning(f"💔 No courses available for Level {full_level} yet.")
-        st.mark
+                            <strong>📅 Uploaded
