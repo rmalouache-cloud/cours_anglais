@@ -62,6 +62,12 @@ st.markdown("""
     .fade-in {
         animation: fadeInUp 0.6s ease-out;
     }
+    
+    /* Style pour le conteneur du composant HTML */
+    .fullscreen-wrapper {
+        width: 100%;
+        margin: 0 auto;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -166,9 +172,9 @@ def convert_pdf_to_base64_images(pdf_path, course_key):
         st.error(f"Erreur lors du traitement du PDF : {str(e)}")
         return None
 
-# Create HTML viewer with working fullscreen
+# Create HTML viewer with working fullscreen (sans les boutons de navigation)
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
-    """Generate HTML with working fullscreen and navigation"""
+    """Generate HTML with working fullscreen - navigation via fleches uniquement"""
     
     # Get current image
     current_img = images_base64[current_page]
@@ -189,10 +195,15 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 font-family: 'Segoe UI', Arial, sans-serif;
                 background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 100%);
                 padding: 20px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
             }}
             
             .presentation-container {{
-                max-width: 1200px;
+                max-width: 1100px;
+                width: 100%;
                 margin: 0 auto;
                 background: white;
                 border-radius: 20px;
@@ -204,52 +215,76 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
             /* Fullscreen styles */
             .presentation-container:fullscreen {{
                 max-width: 100%;
+                width: 100vw;
                 height: 100vh;
                 border-radius: 0;
                 padding: 20px;
                 overflow-y: auto;
                 background: white;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
             }}
             
             .presentation-container:-webkit-full-screen {{
                 max-width: 100%;
+                width: 100vw;
                 height: 100vh;
                 border-radius: 0;
                 padding: 20px;
                 overflow-y: auto;
                 background: white;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
             }}
             
             .presentation-container:-moz-full-screen {{
                 max-width: 100%;
+                width: 100vw;
                 height: 100vh;
                 border-radius: 0;
                 padding: 20px;
                 overflow-y: auto;
                 background: white;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }}
+            
+            .header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+                gap: 10px;
             }}
             
             h1 {{
-                text-align: center;
                 color: #c2185b;
-                margin-bottom: 20px;
+                font-size: 24px;
+                margin: 0;
+                flex: 1;
             }}
             
             .page-info {{
-                text-align: center;
                 color: #c2185b;
                 font-weight: bold;
-                margin: 10px 0;
                 font-size: 16px;
+                background: #ffe6f0;
+                padding: 8px 16px;
+                border-radius: 20px;
+                white-space: nowrap;
             }}
             
             .progress-bar {{
                 width: 100%;
-                height: 10px;
+                height: 6px;
                 background: #f0f0f0;
-                border-radius: 5px;
+                border-radius: 3px;
                 overflow: hidden;
-                margin: 15px 0;
+                margin: 10px 0 20px 0;
             }}
             
             .progress-fill {{
@@ -259,55 +294,55 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 transition: width 0.3s ease;
             }}
             
-            .page-image {{
+            .image-wrapper {{
                 width: 100%;
-                max-height: 70vh;
-                object-fit: contain;
-                border-radius: 10px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                margin: 20px 0;
-                display: block;
-            }}
-            
-            .nav-buttons {{
                 display: flex;
                 justify-content: center;
-                gap: 15px;
-                margin: 20px 0;
-                flex-wrap: wrap;
+                align-items: center;
+                min-height: 400px;
+                background: #fafafa;
+                border-radius: 12px;
+                padding: 10px;
             }}
             
-            .btn {{
-                background: linear-gradient(45deg, #ff69b4, #ff1493);
+            .page-image {{
+                max-width: 100%;
+                max-height: 75vh;
+                object-fit: contain;
+                border-radius: 8px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+                transition: all 0.3s ease;
+                user-select: none;
+            }}
+            
+            /* Style pour le bouton fullscreen */
+            .fullscreen-btn {{
+                background: linear-gradient(45deg, #2196F3, #1976D2);
                 color: white;
                 border: none;
                 border-radius: 25px;
-                padding: 12px 30px;
+                padding: 14px 35px;
                 font-weight: bold;
                 cursor: pointer;
                 transition: all 0.3s ease;
-                font-size: 16px;
-                min-width: 120px;
-            }}
-            
-            .btn:hover:not(:disabled) {{
-                transform: scale(1.05);
-                box-shadow: 0 5px 15px rgba(255,20,147,0.3);
-            }}
-            
-            .btn:disabled {{
-                opacity: 0.5;
-                cursor: not-allowed;
-            }}
-            
-            .btn-fullscreen {{
-                background: linear-gradient(45deg, #2196F3, #1976D2);
+                font-size: 18px;
                 width: 100%;
-                margin-top: 10px;
+                margin-top: 20px;
+                box-shadow: 0 4px 15px rgba(33,150,243,0.3);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 10px;
             }}
             
-            .btn-fullscreen:hover {{
+            .fullscreen-btn:hover {{
+                transform: scale(1.02);
+                box-shadow: 0 6px 25px rgba(33,150,243,0.4);
                 background: linear-gradient(45deg, #1976D2, #0D47A1);
+            }}
+            
+            .fullscreen-btn:active {{
+                transform: scale(0.98);
             }}
             
             .hint {{
@@ -315,38 +350,70 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 color: #999;
                 font-size: 14px;
                 margin-top: 15px;
+                padding: 10px;
+                background: #f8f8f8;
+                border-radius: 10px;
+            }}
+            
+            .hint span {{
+                display: inline-block;
+                background: white;
+                padding: 4px 12px;
+                border-radius: 5px;
+                margin: 0 5px;
+                border: 1px solid #e0e0e0;
+                font-weight: bold;
+                color: #c2185b;
+            }}
+            
+            /* Responsive */
+            @media (max-width: 768px) {{
+                body {{
+                    padding: 10px;
+                }}
+                .presentation-container {{
+                    padding: 15px;
+                }}
+                h1 {{
+                    font-size: 18px;
+                }}
+                .page-info {{
+                    font-size: 14px;
+                    padding: 6px 12px;
+                }}
+                .fullscreen-btn {{
+                    font-size: 16px;
+                    padding: 12px 25px;
+                }}
+                .image-wrapper {{
+                    min-height: 250px;
+                }}
             }}
         </style>
     </head>
     <body>
         <div class="presentation-container" id="presentationContainer">
-            <h1>📖 {course_title}</h1>
+            <div class="header">
+                <h1>📖 {course_title}</h1>
+                <div class="page-info" id="pageInfo">
+                    Page {current_page + 1} / {total_pages}
+                </div>
+            </div>
             
             <div class="progress-bar">
-                <div class="progress-fill"></div>
+                <div class="progress-fill" id="progressFill"></div>
             </div>
             
-            <div class="page-info" id="pageInfo">
-                Page {current_page + 1} / {total_pages}
+            <div class="image-wrapper">
+                <img id="pageImage" class="page-image" src="data:image/png;base64,{current_img}" alt="Page {current_page + 1}" />
             </div>
             
-            <img id="pageImage" class="page-image" src="data:image/png;base64,{current_img}" alt="Page {current_page + 1}" />
-            
-            <div class="nav-buttons">
-                <button class="btn" id="prevBtn" {"disabled" if current_page == 0 else ""}>
-                    ◀◀ PRÉCÉDENT
-                </button>
-                <button class="btn" id="nextBtn" {"disabled" if current_page == total_pages - 1 else ""}>
-                    SUIVANT ▶▶
-                </button>
-            </div>
-            
-            <button class="btn btn-fullscreen" id="fullscreenBtn">
+            <button class="fullscreen-btn" id="fullscreenBtn">
                 🖥️ PLEIN ÉCRAN
             </button>
             
             <div class="hint">
-                💡 Astuce : Utilisez les flèches ← et → du clavier pour naviguer
+                💡 Utilisez les flèches <span>←</span> et <span>→</span> du clavier pour naviguer entre les pages
             </div>
         </div>
         
@@ -359,9 +426,8 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
             // Get elements
             const pageImage = document.getElementById('pageImage');
             const pageInfo = document.getElementById('pageInfo');
-            const prevBtn = document.getElementById('prevBtn');
-            const nextBtn = document.getElementById('nextBtn');
-            const progressFill = document.querySelector('.progress-fill');
+            const progressFill = document.getElementById('progressFill');
+            const container = document.getElementById('presentationContainer');
             
             // Update page function
             function updatePage(index) {{
@@ -374,27 +440,13 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 // Update progress
                 const progressPercent = ((index + 1) / totalPages) * 100;
                 progressFill.style.width = progressPercent + '%';
-                
-                // Update buttons
-                prevBtn.disabled = (index === 0);
-                nextBtn.disabled = (index === totalPages - 1);
             }}
             
-            // Event listeners
-            prevBtn.addEventListener('click', function() {{
-                if (currentPage > 0) {{
-                    updatePage(currentPage - 1);
-                }}
-            }});
-            
-            nextBtn.addEventListener('click', function() {{
-                if (currentPage < totalPages - 1) {{
-                    updatePage(currentPage + 1);
-                }}
-            }});
-            
-            // Keyboard navigation
+            // Keyboard navigation (flèches ← et →)
             document.addEventListener('keydown', function(e) {{
+                // Vérifier si on est en plein écran
+                const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
+                
                 if (e.key === 'ArrowLeft' && currentPage > 0) {{
                     updatePage(currentPage - 1);
                     e.preventDefault();
@@ -406,16 +458,15 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
             
             // Fullscreen button
             document.getElementById('fullscreenBtn').addEventListener('click', function() {{
-                const elem = document.getElementById('presentationContainer');
                 if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
-                    if (elem.requestFullscreen) {{
-                        elem.requestFullscreen();
-                    }} else if (elem.webkitRequestFullscreen) {{
-                        elem.webkitRequestFullscreen();
-                    }} else if (elem.msRequestFullscreen) {{
-                        elem.msRequestFullscreen();
-                    }} else if (elem.mozRequestFullScreen) {{
-                        elem.mozRequestFullScreen();
+                    if (container.requestFullscreen) {{
+                        container.requestFullscreen();
+                    }} else if (container.webkitRequestFullscreen) {{
+                        container.webkitRequestFullscreen();
+                    }} else if (container.msRequestFullscreen) {{
+                        container.msRequestFullscreen();
+                    }} else if (container.mozRequestFullScreen) {{
+                        container.mozRequestFullScreen();
                     }}
                 }} else {{
                     if (document.exitFullscreen) {{
@@ -435,7 +486,16 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 if (document.fullscreenElement) {{
                     document.querySelector('.presentation-container').style.maxWidth = '100%';
                 }} else {{
-                    document.querySelector('.presentation-container').style.maxWidth = '1200px';
+                    document.querySelector('.presentation-container').style.maxWidth = '1100px';
+                }}
+            }});
+            
+            // Support webkit fullscreen
+            document.addEventListener('webkitfullscreenchange', function() {{
+                if (document.webkitFullscreenElement) {{
+                    document.querySelector('.presentation-container').style.maxWidth = '100%';
+                }} else {{
+                    document.querySelector('.presentation-container').style.maxWidth = '1100px';
                 }}
             }});
         </script>
@@ -495,7 +555,7 @@ def display_presentation(course):
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 0
     
-    # Navigation buttons in Streamlit
+    # Navigation en haut (précédent/suivant) - Optionnel, je les garde pour la compatibilité
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col1:
@@ -526,7 +586,7 @@ def display_presentation(course):
     )
     
     # Display the HTML component
-    st.components.v1.html(html_viewer, height=700, scrolling=True)
+    st.components.v1.html(html_viewer, height=750, scrolling=True)
     
     # Download option
     with st.expander("📥 Télécharger le PDF original", expanded=False):
