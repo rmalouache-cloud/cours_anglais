@@ -62,6 +62,32 @@ st.markdown("""
     .fade-in {
         animation: fadeInUp 0.6s ease-out;
     }
+    
+    /* Style pour le bouton fullscreen dans Streamlit */
+    .fullscreen-btn-streamlit {
+        background: linear-gradient(45deg, #2196F3, #1976D2);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 14px 35px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 18px;
+        width: 100%;
+        box-shadow: 0 4px 15px rgba(33,150,243,0.3);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin: 10px 0;
+    }
+    
+    .fullscreen-btn-streamlit:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 25px rgba(33,150,243,0.4);
+        background: linear-gradient(45deg, #1976D2, #0D47A1);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -166,9 +192,9 @@ def convert_pdf_to_base64_images(pdf_path, course_key):
         st.error(f"Erreur lors du traitement du PDF : {str(e)}")
         return None
 
-# Create HTML viewer with fullscreen en haut et navigation en dessous
+# Create HTML viewer avec navigation en dessous (sans fullscreen)
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
-    """Generate HTML with fullscreen at top and navigation below"""
+    """Generate HTML with navigation below (no fullscreen button inside)"""
     
     # Get current image
     current_img = images_base64[current_page]
@@ -201,7 +227,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 transition: all 0.3s ease;
             }}
             
-            /* Fullscreen styles */
+            /* Fullscreen styles pour le conteneur */
             .presentation-container:fullscreen {{
                 max-width: 100%;
                 width: 100vw;
@@ -281,39 +307,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 transition: width 0.3s ease;
             }}
             
-            /* Fullscreen button EN HAUT */
-            .fullscreen-top {{
-                display: flex;
-                justify-content: flex-end;
-                margin-bottom: 15px;
-            }}
-            
-            .btn-fullscreen {{
-                background: linear-gradient(45deg, #2196F3, #1976D2);
-                color: white;
-                border: none;
-                border-radius: 25px;
-                padding: 12px 30px;
-                font-weight: bold;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                font-size: 16px;
-                box-shadow: 0 4px 15px rgba(33,150,243,0.3);
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }}
-            
-            .btn-fullscreen:hover {{
-                transform: scale(1.05);
-                box-shadow: 0 6px 25px rgba(33,150,243,0.4);
-                background: linear-gradient(45deg, #1976D2, #0D47A1);
-            }}
-            
-            .btn-fullscreen:active {{
-                transform: scale(0.98);
-            }}
-            
             .image-wrapper {{
                 width: 100%;
                 display: flex;
@@ -384,28 +377,14 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                     font-size: 14px;
                     min-width: 100px;
                 }}
-                .btn-fullscreen {{
-                    font-size: 14px;
-                    padding: 10px 20px;
-                }}
                 .image-wrapper {{
                     min-height: 250px;
-                }}
-                .fullscreen-top {{
-                    justify-content: center;
                 }}
             }}
         </style>
     </head>
     <body>
         <div class="presentation-container" id="presentationContainer">
-            <!-- FULLSCREEN BUTTON EN HAUT -->
-            <div class="fullscreen-top">
-                <button class="btn-fullscreen" id="fullscreenBtn">
-                    🖥️ PLEIN ÉCRAN
-                </button>
-            </div>
-            
             <div class="header">
                 <h1>📖 {course_title}</h1>
                 <div class="page-info" id="pageInfo">
@@ -494,8 +473,8 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 }}
             }}, true);
             
-            // Fullscreen button
-            document.getElementById('fullscreenBtn').addEventListener('click', function() {{
+            // Fonction pour le fullscreen appelée depuis Streamlit
+            window.toggleFullscreen = function() {{
                 if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
                     if (container.requestFullscreen) {{
                         container.requestFullscreen();
@@ -517,7 +496,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                         document.mozCancelFullScreen();
                     }}
                 }}
-            }});
+            }};
             
             // Detect fullscreen change
             document.addEventListener('fullscreenchange', function() {{
@@ -592,7 +571,7 @@ def display_presentation(course):
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 0
     
-    # Affichage simplifié en haut (juste le numéro de page et la progression)
+    # Affichage du numéro de page et progression
     col1, col2, col3 = st.columns([1, 3, 1])
     
     with col1:
@@ -608,7 +587,42 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # Create HTML viewer avec fullscreen en haut
+    # BOUTON FULLSCREEN EN DEHORS DE LA PRÉSENTATION (dans Streamlit)
+    fullscreen_html = """
+    <button onclick="
+        var iframe = document.querySelector('iframe');
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.toggleFullscreen();
+        }
+    " style="
+        background: linear-gradient(45deg, #2196F3, #1976D2);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 14px 35px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 18px;
+        width: 100%;
+        box-shadow: 0 4px 15px rgba(33,150,243,0.3);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin: 10px 0;
+    "
+    onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 6px 25px rgba(33,150,243,0.4)';"
+    onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(33,150,243,0.3)';"
+    >
+        🖥️ PLEIN ÉCRAN
+    </button>
+    """
+    st.markdown(fullscreen_html, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Create HTML viewer avec navigation en dessous (sans fullscreen)
     html_viewer = create_html_viewer(
         images_base64,
         st.session_state.current_page,
