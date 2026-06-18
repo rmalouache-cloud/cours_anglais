@@ -1,5 +1,7 @@
 streamlit
 python-pptx
-pillow
+Pillow
 lxml
 XlsxWriter
+pdf2image
+reportlab
