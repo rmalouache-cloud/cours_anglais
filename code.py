@@ -335,7 +335,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 transform: none;
             }}
             
-            /* Fullscreen button */
+            /* Fullscreen button EN DESSOUS */
             .btn-fullscreen {{
                 background: linear-gradient(45deg, #2196F3, #1976D2);
                 color: white;
@@ -363,27 +363,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
             
             .btn-fullscreen:active {{
                 transform: scale(0.98);
-            }}
-            
-            .hint {{
-                text-align: center;
-                color: #999;
-                font-size: 13px;
-                margin-top: 15px;
-                padding: 10px;
-                background: #f8f8f8;
-                border-radius: 10px;
-            }}
-            
-            .hint span {{
-                display: inline-block;
-                background: white;
-                padding: 3px 10px;
-                border-radius: 5px;
-                margin: 0 4px;
-                border: 1px solid #e0e0e0;
-                font-weight: bold;
-                color: #c2185b;
             }}
             
             /* Responsive */
@@ -439,14 +418,12 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 </button>
             </div>
             
-            <!-- Bouton FULLSCREEN -->
+            <!-- Bouton FULLSCREEN EN DESSOUS -->
             <button class="btn-fullscreen" id="fullscreenBtn">
                 🖥️ PLEIN ÉCRAN
             </button>
             
-            <div class="hint">
-                💡 Utilisez les flèches <span>←</span> et <span>→</span> du clavier pour naviguer
-            </div>
+            <!-- PAS DE MESSAGE D'AIDE SUR LES FLÈCHES -->
         </div>
         
         <script>
@@ -494,16 +471,25 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 }}
             }});
             
-            // Keyboard navigation (flèches ← et →)
+            // Keyboard navigation (flèches ← et →) - CORRIGÉ
             document.addEventListener('keydown', function(e) {{
-                if (e.key === 'ArrowLeft' && currentPage > 0) {{
-                    updatePage(currentPage - 1);
-                    e.preventDefault();
-                }} else if (e.key === 'ArrowRight' && currentPage < totalPages - 1) {{
-                    updatePage(currentPage + 1);
-                    e.preventDefault();
+                // Vérifier si on est dans la page
+                const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
+                
+                if (e.key === 'ArrowLeft') {{
+                    if (currentPage > 0) {{
+                        updatePage(currentPage - 1);
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
+                }} else if (e.key === 'ArrowRight') {{
+                    if (currentPage < totalPages - 1) {{
+                        updatePage(currentPage + 1);
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
                 }}
-            }});
+            }}, true); // Use capture phase
             
             // Fullscreen button
             document.getElementById('fullscreenBtn').addEventListener('click', function() {{
@@ -603,22 +589,18 @@ def display_presentation(course):
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 0
     
-    # PAS DE BOUTONS ICI - ils sont dans le HTML !
-    # Afficher uniquement le numéro de page et la progression
+    # Affichage simplifié en haut (juste le numéro de page et la progression)
     col1, col2, col3 = st.columns([1, 3, 1])
     
     with col1:
-        # Rien - espace vide
         st.write("")
     
     with col2:
-        # Afficher le numéro de page
         st.markdown(f"<h3 style='text-align: center; color: #c2185b;'>Page {st.session_state.current_page + 1} / {total_pages}</h3>", unsafe_allow_html=True)
         progress = (st.session_state.current_page + 1) / total_pages
         st.progress(progress)
     
     with col3:
-        # Rien - espace vide
         st.write("")
     
     st.markdown("---")
