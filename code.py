@@ -7,7 +7,7 @@ from PIL import Image
 import io
 import base64
 import shutil
-import fitz  # PyMuPDF - PAS BESOIN DE POPPLER !
+import fitz  # PyMuPDF
 
 # Page configuration
 st.set_page_config(
@@ -52,21 +52,6 @@ st.markdown("""
     
     .course-card:hover {
         transform: translateY(-5px);
-    }
-    
-    .pdf-page-container {
-        background: white;
-        border-radius: 20px;
-        padding: 20px;
-        margin: 20px 0;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        text-align: center;
-    }
-    
-    .pdf-page-image {
-        max-width: 100%;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
     
     @keyframes fadeInUp {
@@ -120,34 +105,27 @@ def delete_course(course_key, course_path, images_folder, pdf_pages_folder=None)
     except:
         return False
 
-# Convert PDF to images using PyMuPDF (fitz) - SANS POPPLER !
+# Convert PDF to images using PyMuPDF
 def convert_pdf_to_images(pdf_path, output_folder):
-    """Convert PDF pages to images using PyMuPDF - No poppler needed!"""
+    """Convert PDF pages to images using PyMuPDF"""
     try:
-        # Ouvrir le PDF avec PyMuPDF
         pdf_document = fitz.open(pdf_path)
         
         image_paths = []
         for page_num in range(len(pdf_document)):
-            # Récupérer la page
             page = pdf_document[page_num]
-            
-            # Convertir en image avec une résolution correcte
-            zoom = 2.0  # Facteur de zoom (2.0 = 144 DPI)
+            zoom = 2.0
             mat = fitz.Matrix(zoom, zoom)
             pix = page.get_pixmap(matrix=mat)
             
-            # Convertir en image PIL
             img_data = pix.tobytes("png")
             img = Image.open(io.BytesIO(img_data))
             
-            # Redimensionner si trop grande
             if img.width > 1200:
                 ratio = 1200 / img.width
                 new_size = (1200, int(img.height * ratio))
                 img = img.resize(new_size, Image.Resampling.LANCZOS)
             
-            # Sauvegarder l'image
             image_path = os.path.join(output_folder, f"page_{page_num + 1}.png")
             img.save(image_path, "PNG", optimize=True)
             image_paths.append(image_path)
@@ -159,57 +137,313 @@ def convert_pdf_to_images(pdf_path, output_folder):
         st.error(f"Erreur lors de la conversion du PDF : {str(e)}")
         return None
 
-# Convert PDF to HTML pages with images
-def convert_pdf_to_html_pages(pdf_path, course_key):
-    """Convert PDF to HTML pages with images"""
+# Convert PDF to base64 images
+def convert_pdf_to_base64_images(pdf_path, course_key):
+    """Convert PDF to base64 images for HTML display"""
     try:
-        # Create folder for PDF pages if not exists
         pdf_pages_folder = Path(f"courses/pdf_pages/{course_key}")
         pdf_pages_folder.mkdir(parents=True, exist_ok=True)
         
         # Check if images already exist
         existing_images = list(pdf_pages_folder.glob("page_*.png"))
         if existing_images:
-            # Use existing images
             image_paths = sorted([str(img) for img in existing_images])
         else:
-            # Convert PDF to images
             image_paths = convert_pdf_to_images(pdf_path, str(pdf_pages_folder))
             if not image_paths:
                 return None
         
-        # Build HTML for each page
-        pages_html = []
-        for i, img_path in enumerate(image_paths):
-            # Read image and convert to base64
+        # Convert images to base64
+        images_base64 = []
+        for img_path in image_paths:
             with open(img_path, "rb") as f:
                 img_data = base64.b64encode(f.read()).decode()
-            
-            html_content = f"""
-            <div style="
-                width: 100%;
-                min-height: 400px;
-                background: white;
-                border-radius: 15px;
-                padding: 20px;
-                font-family: 'Segoe UI', Arial, sans-serif;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                text-align: center;
-            ">
-                <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">
-                    Page {i + 1} / {len(image_paths)}
-                </h2>
-                <img src="data:image/png;base64,{img_data}" 
-                     style="max-width: 100%; border-radius: 10px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" />
-            </div>
-            """
-            pages_html.append(html_content)
+                images_base64.append(img_data)
         
-        return pages_html
+        return images_base64
         
     except Exception as e:
         st.error(f"Erreur lors du traitement du PDF : {str(e)}")
         return None
+
+# Create HTML viewer with working fullscreen
+def create_html_viewer(images_base64, current_page, total_pages, course_title):
+    """Generate HTML with working fullscreen and navigation"""
+    
+    # Get current image
+    current_img = images_base64[current_page]
+    
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            
+            body {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 100%);
+                padding: 20px;
+            }}
+            
+            .presentation-container {{
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 20px;
+                padding: 30px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            }}
+            
+            /* Fullscreen styles */
+            .presentation-container:fullscreen {{
+                max-width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 20px;
+                overflow-y: auto;
+                background: white;
+            }}
+            
+            .presentation-container:-webkit-full-screen {{
+                max-width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 20px;
+                overflow-y: auto;
+                background: white;
+            }}
+            
+            .presentation-container:-moz-full-screen {{
+                max-width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 20px;
+                overflow-y: auto;
+                background: white;
+            }}
+            
+            h1 {{
+                text-align: center;
+                color: #c2185b;
+                margin-bottom: 20px;
+            }}
+            
+            .page-info {{
+                text-align: center;
+                color: #c2185b;
+                font-weight: bold;
+                margin: 10px 0;
+                font-size: 16px;
+            }}
+            
+            .progress-bar {{
+                width: 100%;
+                height: 10px;
+                background: #f0f0f0;
+                border-radius: 5px;
+                overflow: hidden;
+                margin: 15px 0;
+            }}
+            
+            .progress-fill {{
+                width: {((current_page + 1) / total_pages) * 100}%;
+                height: 100%;
+                background: linear-gradient(45deg, #ff69b4, #ff1493);
+                transition: width 0.3s ease;
+            }}
+            
+            .page-image {{
+                width: 100%;
+                max-height: 70vh;
+                object-fit: contain;
+                border-radius: 10px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                margin: 20px 0;
+                display: block;
+            }}
+            
+            .nav-buttons {{
+                display: flex;
+                justify-content: center;
+                gap: 15px;
+                margin: 20px 0;
+                flex-wrap: wrap;
+            }}
+            
+            .btn {{
+                background: linear-gradient(45deg, #ff69b4, #ff1493);
+                color: white;
+                border: none;
+                border-radius: 25px;
+                padding: 12px 30px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-size: 16px;
+                min-width: 120px;
+            }}
+            
+            .btn:hover:not(:disabled) {{
+                transform: scale(1.05);
+                box-shadow: 0 5px 15px rgba(255,20,147,0.3);
+            }}
+            
+            .btn:disabled {{
+                opacity: 0.5;
+                cursor: not-allowed;
+            }}
+            
+            .btn-fullscreen {{
+                background: linear-gradient(45deg, #2196F3, #1976D2);
+                width: 100%;
+                margin-top: 10px;
+            }}
+            
+            .btn-fullscreen:hover {{
+                background: linear-gradient(45deg, #1976D2, #0D47A1);
+            }}
+            
+            .hint {{
+                text-align: center;
+                color: #999;
+                font-size: 14px;
+                margin-top: 15px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="presentation-container" id="presentationContainer">
+            <h1>📖 {course_title}</h1>
+            
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            
+            <div class="page-info" id="pageInfo">
+                Page {current_page + 1} / {total_pages}
+            </div>
+            
+            <img id="pageImage" class="page-image" src="data:image/png;base64,{current_img}" alt="Page {current_page + 1}" />
+            
+            <div class="nav-buttons">
+                <button class="btn" id="prevBtn" {"disabled" if current_page == 0 else ""}>
+                    ◀◀ PRÉCÉDENT
+                </button>
+                <button class="btn" id="nextBtn" {"disabled" if current_page == total_pages - 1 else ""}>
+                    SUIVANT ▶▶
+                </button>
+            </div>
+            
+            <button class="btn btn-fullscreen" id="fullscreenBtn">
+                🖥️ PLEIN ÉCRAN
+            </button>
+            
+            <div class="hint">
+                💡 Astuce : Utilisez les flèches ← et → du clavier pour naviguer
+            </div>
+        </div>
+        
+        <script>
+            // Store data
+            const imagesBase64 = {json.dumps(images_base64)};
+            let currentPage = {current_page};
+            const totalPages = {total_pages};
+            
+            // Get elements
+            const pageImage = document.getElementById('pageImage');
+            const pageInfo = document.getElementById('pageInfo');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const progressFill = document.querySelector('.progress-fill');
+            
+            // Update page function
+            function updatePage(index) {{
+                if (index < 0 || index >= totalPages) return;
+                
+                currentPage = index;
+                pageImage.src = 'data:image/png;base64,' + imagesBase64[index];
+                pageInfo.textContent = 'Page ' + (index + 1) + ' / ' + totalPages;
+                
+                // Update progress
+                const progressPercent = ((index + 1) / totalPages) * 100;
+                progressFill.style.width = progressPercent + '%';
+                
+                // Update buttons
+                prevBtn.disabled = (index === 0);
+                nextBtn.disabled = (index === totalPages - 1);
+            }}
+            
+            // Event listeners
+            prevBtn.addEventListener('click', function() {{
+                if (currentPage > 0) {{
+                    updatePage(currentPage - 1);
+                }}
+            }});
+            
+            nextBtn.addEventListener('click', function() {{
+                if (currentPage < totalPages - 1) {{
+                    updatePage(currentPage + 1);
+                }}
+            }});
+            
+            // Keyboard navigation
+            document.addEventListener('keydown', function(e) {{
+                if (e.key === 'ArrowLeft' && currentPage > 0) {{
+                    updatePage(currentPage - 1);
+                    e.preventDefault();
+                }} else if (e.key === 'ArrowRight' && currentPage < totalPages - 1) {{
+                    updatePage(currentPage + 1);
+                    e.preventDefault();
+                }}
+            }});
+            
+            // Fullscreen button
+            document.getElementById('fullscreenBtn').addEventListener('click', function() {{
+                const elem = document.getElementById('presentationContainer');
+                if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
+                    if (elem.requestFullscreen) {{
+                        elem.requestFullscreen();
+                    }} else if (elem.webkitRequestFullscreen) {{
+                        elem.webkitRequestFullscreen();
+                    }} else if (elem.msRequestFullscreen) {{
+                        elem.msRequestFullscreen();
+                    }} else if (elem.mozRequestFullScreen) {{
+                        elem.mozRequestFullScreen();
+                    }}
+                }} else {{
+                    if (document.exitFullscreen) {{
+                        document.exitFullscreen();
+                    }} else if (document.webkitExitFullscreen) {{
+                        document.webkitExitFullscreen();
+                    }} else if (document.msExitFullscreen) {{
+                        document.msExitFullscreen();
+                    }} else if (document.mozCancelFullScreen) {{
+                        document.mozCancelFullScreen();
+                    }}
+                }}
+            }});
+            
+            // Detect fullscreen change to adapt styles
+            document.addEventListener('fullscreenchange', function() {{
+                if (document.fullscreenElement) {{
+                    document.querySelector('.presentation-container').style.maxWidth = '100%';
+                }} else {{
+                    document.querySelector('.presentation-container').style.maxWidth = '1200px';
+                }}
+            }});
+        </script>
+    </body>
+    </html>
+    """
+    
+    return html_code
 
 # Display PDF presentation
 def display_presentation(course):
@@ -218,9 +452,8 @@ def display_presentation(course):
     # Back button
     if st.button("◀ Back to Courses", use_container_width=False):
         st.session_state['viewing_course'] = None
-        # Clean up session state
-        if 'pdf_pages' in st.session_state:
-            del st.session_state.pdf_pages
+        if 'pdf_images' in st.session_state:
+            del st.session_state.pdf_images
         st.rerun()
     
     # Title
@@ -236,14 +469,14 @@ def display_presentation(course):
     # Generate unique key for this course
     course_key = f"{course['level']}_{course['filename']}".replace('.pdf', '')
     
-    # Check if we have PDF pages cached
-    if 'pdf_pages' not in st.session_state or st.session_state.get('current_pdf_key') != course_key:
+    # Check if we have PDF images cached
+    if 'pdf_images' not in st.session_state or st.session_state.get('current_pdf_key') != course_key:
         with st.spinner("🔄 Conversion du PDF en cours..."):
-            pages_html = convert_pdf_to_html_pages(course["path"], course_key)
-            if pages_html:
-                st.session_state.pdf_pages = pages_html
+            images_base64 = convert_pdf_to_base64_images(course["path"], course_key)
+            if images_base64:
+                st.session_state.pdf_images = images_base64
                 st.session_state.current_pdf_key = course_key
-                st.session_state.slide_index = 0
+                st.session_state.current_page = 0
             else:
                 st.error("❌ Impossible d'afficher ce PDF. Veuillez vérifier que le fichier est valide.")
                 with open(course["path"], "rb") as f:
@@ -255,85 +488,51 @@ def display_presentation(course):
                     )
                 return
     
-    pages_html = st.session_state.pdf_pages
+    images_base64 = st.session_state.pdf_images
+    total_pages = len(images_base64)
     
-    if pages_html:
-        # Initialize page index if not exists
-        if 'slide_index' not in st.session_state:
-            st.session_state.slide_index = 0
-        
-        # Navigation buttons
-        col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
-        
-        with col1:
-            if st.button("◀◀ PRÉCÉDENT", use_container_width=True):
-                if st.session_state.slide_index > 0:
-                    st.session_state.slide_index -= 1
-                    st.rerun()
-        
-        with col2:
-            st.markdown(f"<h3 style='text-align: center;'>Page {st.session_state.slide_index + 1} / {len(pages_html)}</h3>", unsafe_allow_html=True)
-        
-        with col3:
-            progress = (st.session_state.slide_index + 1) / len(pages_html)
-            st.progress(progress)
-        
-        with col4:
-            if st.button("SUIVANT ▶▶", use_container_width=True):
-                if st.session_state.slide_index < len(pages_html) - 1:
-                    st.session_state.slide_index += 1
-                    st.rerun()
-        
-        with col5:
-            # Fullscreen button with JavaScript
-            fullscreen_html = """
-                <button onclick="
-                    var elem = document.querySelector('.pdf-page-container');
-                    if (elem.requestFullscreen) {
-                        elem.requestFullscreen();
-                    } else if (elem.webkitRequestFullscreen) {
-                        elem.webkitRequestFullscreen();
-                    } else if (elem.msRequestFullscreen) {
-                        elem.msRequestFullscreen();
-                    }
-                " style="
-                    background: linear-gradient(45deg, #ff69b4, #ff1493);
-                    color: white;
-                    border: none;
-                    border-radius: 25px;
-                    padding: 10px 20px;
-                    font-weight: bold;
-                    cursor: pointer;
-                    width: 100%;
-                    font-size: 16px;
-                ">
-                    🖥️ PLEIN ÉCRAN
-                </button>
-            """
-            st.markdown(fullscreen_html, unsafe_allow_html=True)
-        
-        # Display current page
-        st.markdown("---")
-        st.markdown(f'<div class="pdf-page-container">{pages_html[st.session_state.slide_index]}</div>', unsafe_allow_html=True)
-        
-        # Navigation hint
-        st.info("💡 **Astuce :** Utilisez les flèches ← et → du clavier pour naviguer")
-        
-        # Download option
-        with st.expander("📥 Télécharger le PDF original", expanded=False):
-            with open(course["path"], "rb") as f:
-                st.download_button(
-                    label="Télécharger le fichier PDF",
-                    data=f,
-                    file_name=course["filename"],
-                    mime="application/pdf"
-                )
+    # Initialize page index
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = 0
     
-    else:
-        st.error("❌ Impossible d'afficher ce PDF. Veuillez vérifier que le fichier est valide.")
+    # Navigation buttons in Streamlit
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col1:
+        if st.button("◀◀ PREVIOUS", use_container_width=True):
+            if st.session_state.current_page > 0:
+                st.session_state.current_page -= 1
+                st.rerun()
+    
+    with col2:
+        st.markdown(f"<h3 style='text-align: center;'>Page {st.session_state.current_page + 1} / {total_pages}</h3>", unsafe_allow_html=True)
+        progress = (st.session_state.current_page + 1) / total_pages
+        st.progress(progress)
+    
+    with col3:
+        if st.button("NEXT ▶▶", use_container_width=True):
+            if st.session_state.current_page < total_pages - 1:
+                st.session_state.current_page += 1
+                st.rerun()
+    
+    st.markdown("---")
+    
+    # Create HTML viewer with working fullscreen
+    html_viewer = create_html_viewer(
+        images_base64,
+        st.session_state.current_page,
+        total_pages,
+        course['title']
+    )
+    
+    # Display the HTML component
+    st.components.v1.html(html_viewer, height=700, scrolling=True)
+    
+    # Download option
+    with st.expander("📥 Télécharger le PDF original", expanded=False):
         with open(course["path"], "rb") as f:
             st.download_button(
-                label="📥 Télécharger le PDF",
+                label="Télécharger le fichier PDF",
                 data=f,
                 file_name=course["filename"],
                 mime="application/pdf"
@@ -415,16 +614,13 @@ def teacher_mode(metadata):
         
         if st.button("💖 Save Course", use_container_width=True):
             if title and uploaded_file:
-                # Create folder for this course
                 course_folder = Path(f"courses/Level_{level}/{level}{sub_level}")
                 course_folder.mkdir(parents=True, exist_ok=True)
                 
-                # Save file
                 save_path = course_folder / uploaded_file.name
                 with open(save_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 
-                # Save metadata
                 course_key = f"{full_level}_{uploaded_file.name}"
                 metadata[course_key] = {
                     "title": title,
@@ -472,7 +668,6 @@ def teacher_mode(metadata):
             with st.container():
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
-                    # Show file type icon
                     file_type = "📄" if course.get("type", "pdf") == "pdf" else "📄"
                     st.markdown(f"""
                         <div class="course-card">
@@ -484,9 +679,8 @@ def teacher_mode(metadata):
                     """, unsafe_allow_html=True)
                     
                     if st.button(f"🎬 View & Present", key=f"view_{key}"):
-                        # Clear cached PDF pages
-                        if 'pdf_pages' in st.session_state:
-                            del st.session_state.pdf_pages
+                        if 'pdf_images' in st.session_state:
+                            del st.session_state.pdf_images
                         if 'current_pdf_key' in st.session_state:
                             del st.session_state.current_pdf_key
                         st.session_state.viewing_course = course
@@ -551,9 +745,8 @@ def student_mode(metadata):
                     """, unsafe_allow_html=True)
                     
                     if st.button(f"🎬 View Course", key=f"view_student_{key}"):
-                        # Clear cached PDF pages
-                        if 'pdf_pages' in st.session_state:
-                            del st.session_state.pdf_pages
+                        if 'pdf_images' in st.session_state:
+                            del st.session_state.pdf_images
                         if 'current_pdf_key' in st.session_state:
                             del st.session_state.current_pdf_key
                         st.session_state.viewing_course = course
