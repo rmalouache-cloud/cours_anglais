@@ -952,4 +952,6 @@ def student_mode(metadata):
                             <strong>🎯 Level:</strong> {course['level']}<br>
                             <strong>📄 Type:</strong> PDF Document
                         </div>
-                    """, unsafe_allow_html=True
+                    """, unsafe_allow_html=True)
+                    
+                    if st
