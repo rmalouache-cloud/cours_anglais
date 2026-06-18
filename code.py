@@ -166,9 +166,9 @@ def convert_pdf_to_base64_images(pdf_path, course_key):
         st.error(f"Erreur lors du traitement du PDF : {str(e)}")
         return None
 
-# Create HTML viewer avec navigation en dessous
+# Create HTML viewer complet avec bouton fullscreen EN HAUT
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
-    """Generate HTML with navigation below"""
+    """Generate complete HTML with fullscreen button at top and navigation below"""
     
     # Get current image
     current_img = images_base64[current_page]
@@ -238,6 +238,39 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
+            }}
+            
+            /* Style du bouton fullscreen EN HAUT */
+            .fullscreen-top {{
+                display: flex;
+                justify-content: flex-end;
+                margin-bottom: 15px;
+            }}
+            
+            .btn-fullscreen {{
+                background: linear-gradient(45deg, #2196F3, #1976D2);
+                color: white;
+                border: none;
+                border-radius: 25px;
+                padding: 12px 30px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-size: 16px;
+                box-shadow: 0 4px 15px rgba(33,150,243,0.3);
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }}
+            
+            .btn-fullscreen:hover {{
+                transform: scale(1.05);
+                box-shadow: 0 6px 25px rgba(33,150,243,0.4);
+                background: linear-gradient(45deg, #1976D2, #0D47A1);
+            }}
+            
+            .btn-fullscreen:active {{
+                transform: scale(0.98);
             }}
             
             .header {{
@@ -348,14 +381,28 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                     font-size: 14px;
                     min-width: 100px;
                 }}
+                .btn-fullscreen {{
+                    font-size: 14px;
+                    padding: 10px 20px;
+                }}
                 .image-wrapper {{
                     min-height: 250px;
+                }}
+                .fullscreen-top {{
+                    justify-content: center;
                 }}
             }}
         </style>
     </head>
     <body>
         <div class="presentation-container" id="presentationContainer">
+            <!-- FULLSCREEN BUTTON EN HAUT -->
+            <div class="fullscreen-top">
+                <button class="btn-fullscreen" id="fullscreenBtn">
+                    🖥️ PLEIN ÉCRAN
+                </button>
+            </div>
+            
             <div class="header">
                 <h1>📖 {course_title}</h1>
                 <div class="page-info" id="pageInfo">
@@ -425,8 +472,8 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 }}
             }});
             
-            // Fonction pour le fullscreen
-            window.toggleFullscreen = function() {{
+            // Fullscreen - le bouton est dans le même document !
+            document.getElementById('fullscreenBtn').addEventListener('click', function() {{
                 if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
                     if (container.requestFullscreen) {{
                         container.requestFullscreen();
@@ -448,7 +495,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                         document.mozCancelFullScreen();
                     }}
                 }}
-            }};
+            }});
             
             document.addEventListener('fullscreenchange', function() {{
                 if (document.fullscreenElement) {{
@@ -514,7 +561,7 @@ def display_presentation(course):
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 0
     
-    # Affichage du numéro de page et progression
+    # Affichage du numéro de page et progression (simplifié)
     col1, col2, col3 = st.columns([1, 3, 1])
     
     with col1:
@@ -530,49 +577,7 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # BOUTON FULLSCREEN avec st.components.v1.html() (fonctionne !)
-    fullscreen_button_html = """
-    <div style="display: flex; justify-content: center; margin: 10px 0;">
-        <button onclick="
-            var iframes = document.querySelectorAll('iframe');
-            for (var i = 0; i < iframes.length; i++) {
-                try {
-                    if (iframes[i].contentWindow && iframes[i].contentWindow.toggleFullscreen) {
-                        iframes[i].contentWindow.toggleFullscreen();
-                        break;
-                    }
-                } catch(e) {}
-            }
-        " style="
-            background: linear-gradient(45deg, #2196F3, #1976D2);
-            color: white;
-            border: none;
-            border-radius: 25px;
-            padding: 14px 40px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 18px;
-            box-shadow: 0 4px 15px rgba(33,150,243,0.3);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            width: 100%;
-            max-width: 400px;
-        "
-        onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 6px 25px rgba(33,150,243,0.4)';"
-        onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(33,150,243,0.3)';"
-        >
-            🖥️ PLEIN ÉCRAN
-        </button>
-    </div>
-    """
-    st.components.v1.html(fullscreen_button_html, height=80)
-    
-    st.markdown("---")
-    
-    # Create HTML viewer avec navigation en dessous
+    # Create HTML viewer complet (fullscreen + navigation)
     html_viewer = create_html_viewer(
         images_base64,
         st.session_state.current_page,
@@ -581,7 +586,7 @@ def display_presentation(course):
     )
     
     # Display the HTML component
-    st.components.v1.html(html_viewer, height=750, scrolling=True)
+    st.components.v1.html(html_viewer, height=780, scrolling=True)
     
     # Download option
     with st.expander("📥 Télécharger le PDF original", expanded=False):
