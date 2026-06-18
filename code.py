@@ -41,6 +41,21 @@ st.markdown("""
         transform: scale(1.05);
     }
     
+    /* Style spécifique pour le bouton fullscreen */
+    .fullscreen-btn-container .stButton > button {
+        background: linear-gradient(45deg, #2196F3, #1976D2);
+        font-size: 18px;
+        padding: 14px 35px;
+        width: 100%;
+        box-shadow: 0 4px 15px rgba(33,150,243,0.3);
+    }
+    
+    .fullscreen-btn-container .stButton > button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 25px rgba(33,150,243,0.4);
+        background: linear-gradient(45deg, #1976D2, #0D47A1);
+    }
+    
     .course-card {
         background: white;
         border-radius: 20px;
@@ -61,32 +76,6 @@ st.markdown("""
     
     .fade-in {
         animation: fadeInUp 0.6s ease-out;
-    }
-    
-    /* Style pour le bouton fullscreen dans Streamlit */
-    .fullscreen-btn-streamlit {
-        background: linear-gradient(45deg, #2196F3, #1976D2);
-        color: white;
-        border: none;
-        border-radius: 25px;
-        padding: 14px 35px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        font-size: 18px;
-        width: 100%;
-        box-shadow: 0 4px 15px rgba(33,150,243,0.3);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 10px;
-        margin: 10px 0;
-    }
-    
-    .fullscreen-btn-streamlit:hover {
-        transform: scale(1.02);
-        box-shadow: 0 6px 25px rgba(33,150,243,0.4);
-        background: linear-gradient(45deg, #1976D2, #0D47A1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -473,7 +462,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 }}
             }}, true);
             
-            // Fonction pour le fullscreen appelée depuis Streamlit
+            // Fonction pour le fullscreen appelée depuis l'extérieur
             window.toggleFullscreen = function() {{
                 if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
                     if (container.requestFullscreen) {{
@@ -587,38 +576,20 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # BOUTON FULLSCREEN EN DEHORS DE LA PRÉSENTATION (dans Streamlit)
-    fullscreen_html = """
-    <button onclick="
-        var iframe = document.querySelector('iframe');
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.toggleFullscreen();
-        }
-    " style="
-        background: linear-gradient(45deg, #2196F3, #1976D2);
-        color: white;
-        border: none;
-        border-radius: 25px;
-        padding: 14px 35px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        font-size: 18px;
-        width: 100%;
-        box-shadow: 0 4px 15px rgba(33,150,243,0.3);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 10px;
-        margin: 10px 0;
-    "
-    onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 6px 25px rgba(33,150,243,0.4)';"
-    onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(33,150,243,0.3)';"
-    >
-        🖥️ PLEIN ÉCRAN
-    </button>
-    """
-    st.markdown(fullscreen_html, unsafe_allow_html=True)
+    # BOUTON FULLSCREEN avec st.button (fonctionne !)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🖥️ PLEIN ÉCRAN", use_container_width=True, key="fullscreen_btn"):
+            # Injecter du JavaScript pour appeler toggleFullscreen
+            fullscreen_js = """
+            <script>
+                var iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.toggleFullscreen();
+                }
+            </script>
+            """
+            st.components.v1.html(fullscreen_js, height=0)
     
     st.markdown("---")
     
