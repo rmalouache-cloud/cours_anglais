@@ -6,8 +6,8 @@ import time
 from PIL import Image
 import io
 import base64
-import tempfile
 import shutil
+import fitz  # PyMuPDF - PAS BESOIN DE POPPLER !
 
 # Page configuration
 st.set_page_config(
@@ -77,19 +77,6 @@ st.markdown("""
     .fade-in {
         animation: fadeInUp 0.6s ease-out;
     }
-    
-    /* Fullscreen styles for PDF viewer */
-    .pdf-fullscreen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: white;
-        z-index: 9999;
-        overflow-y: auto;
-        padding: 40px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -101,8 +88,8 @@ def init_folders():
         for sub in sub_levels:
             Path(f"courses/Level_{level}/{level}{sub}").mkdir(parents=True, exist_ok=True)
             Path(f"courses/Level_{level}/{level}{sub}/images").mkdir(parents=True, exist_ok=True)
-            Path(f"courses/Level_{level}/{level}{sub}/pdf_pages").mkdir(parents=True, exist_ok=True)
     Path("data").mkdir(exist_ok=True)
+    Path("courses/pdf_pages").mkdir(parents=True, exist_ok=True)
 
 # Load metadata
 def load_metadata():
@@ -133,33 +120,43 @@ def delete_course(course_key, course_path, images_folder, pdf_pages_folder=None)
     except:
         return False
 
-# Convert PDF to images using pdf2image
+# Convert PDF to images using PyMuPDF (fitz) - SANS POPPLER !
 def convert_pdf_to_images(pdf_path, output_folder):
-    """Convert PDF pages to images using pdf2image"""
+    """Convert PDF pages to images using PyMuPDF - No poppler needed!"""
     try:
-        from pdf2image import convert_from_path
+        # Ouvrir le PDF avec PyMuPDF
+        pdf_document = fitz.open(pdf_path)
         
-        # Convert PDF to images
-        images = convert_from_path(pdf_path, dpi=150)
-        
-        # Save images
         image_paths = []
-        for i, image in enumerate(images):
-            # Resize if too large
-            if image.width > 1200:
-                ratio = 1200 / image.width
-                new_size = (1200, int(image.height * ratio))
-                image = image.resize(new_size, Image.Resampling.LANCZOS)
+        for page_num in range(len(pdf_document)):
+            # Récupérer la page
+            page = pdf_document[page_num]
             
-            # Save image
-            image_path = os.path.join(output_folder, f"page_{i+1}.png")
-            image.save(image_path, "PNG", optimize=True)
+            # Convertir en image avec une résolution correcte
+            zoom = 2.0  # Facteur de zoom (2.0 = 144 DPI)
+            mat = fitz.Matrix(zoom, zoom)
+            pix = page.get_pixmap(matrix=mat)
+            
+            # Convertir en image PIL
+            img_data = pix.tobytes("png")
+            img = Image.open(io.BytesIO(img_data))
+            
+            # Redimensionner si trop grande
+            if img.width > 1200:
+                ratio = 1200 / img.width
+                new_size = (1200, int(img.height * ratio))
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+            
+            # Sauvegarder l'image
+            image_path = os.path.join(output_folder, f"page_{page_num + 1}.png")
+            img.save(image_path, "PNG", optimize=True)
             image_paths.append(image_path)
         
+        pdf_document.close()
         return image_paths
         
     except Exception as e:
-        st.error(f"Error converting PDF to images: {str(e)}")
+        st.error(f"Erreur lors de la conversion du PDF : {str(e)}")
         return None
 
 # Convert PDF to HTML pages with images
@@ -200,7 +197,7 @@ def convert_pdf_to_html_pages(pdf_path, course_key):
                 text-align: center;
             ">
                 <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">
-                    Page {i + 1} of {len(image_paths)}
+                    Page {i + 1} / {len(image_paths)}
                 </h2>
                 <img src="data:image/png;base64,{img_data}" 
                      style="max-width: 100%; border-radius: 10px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" />
@@ -211,7 +208,7 @@ def convert_pdf_to_html_pages(pdf_path, course_key):
         return pages_html
         
     except Exception as e:
-        st.error(f"Error processing PDF: {str(e)}")
+        st.error(f"Erreur lors du traitement du PDF : {str(e)}")
         return None
 
 # Display PDF presentation
@@ -241,21 +238,22 @@ def display_presentation(course):
     
     # Check if we have PDF pages cached
     if 'pdf_pages' not in st.session_state or st.session_state.get('current_pdf_key') != course_key:
-        pages_html = convert_pdf_to_html_pages(course["path"], course_key)
-        if pages_html:
-            st.session_state.pdf_pages = pages_html
-            st.session_state.current_pdf_key = course_key
-            st.session_state.slide_index = 0
-        else:
-            st.error("❌ Cannot display this PDF. Please make sure the file is valid.")
-            with open(course["path"], "rb") as f:
-                st.download_button(
-                    label="📥 Download PDF",
-                    data=f,
-                    file_name=course["filename"],
-                    mime="application/pdf"
-                )
-            return
+        with st.spinner("🔄 Conversion du PDF en cours..."):
+            pages_html = convert_pdf_to_html_pages(course["path"], course_key)
+            if pages_html:
+                st.session_state.pdf_pages = pages_html
+                st.session_state.current_pdf_key = course_key
+                st.session_state.slide_index = 0
+            else:
+                st.error("❌ Impossible d'afficher ce PDF. Veuillez vérifier que le fichier est valide.")
+                with open(course["path"], "rb") as f:
+                    st.download_button(
+                        label="📥 Télécharger le PDF",
+                        data=f,
+                        file_name=course["filename"],
+                        mime="application/pdf"
+                    )
+                return
     
     pages_html = st.session_state.pdf_pages
     
@@ -268,7 +266,7 @@ def display_presentation(course):
         col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
         
         with col1:
-            if st.button("◀◀ PREVIOUS", use_container_width=True):
+            if st.button("◀◀ PRÉCÉDENT", use_container_width=True):
                 if st.session_state.slide_index > 0:
                     st.session_state.slide_index -= 1
                     st.rerun()
@@ -281,7 +279,7 @@ def display_presentation(course):
             st.progress(progress)
         
         with col4:
-            if st.button("NEXT ▶▶", use_container_width=True):
+            if st.button("SUIVANT ▶▶", use_container_width=True):
                 if st.session_state.slide_index < len(pages_html) - 1:
                     st.session_state.slide_index += 1
                     st.rerun()
@@ -309,7 +307,7 @@ def display_presentation(course):
                     width: 100%;
                     font-size: 16px;
                 ">
-                    🖥️ FULLSCREEN
+                    🖥️ PLEIN ÉCRAN
                 </button>
             """
             st.markdown(fullscreen_html, unsafe_allow_html=True)
@@ -319,23 +317,23 @@ def display_presentation(course):
         st.markdown(f'<div class="pdf-page-container">{pages_html[st.session_state.slide_index]}</div>', unsafe_allow_html=True)
         
         # Navigation hint
-        st.info("💡 **Tip:** Use ← and → arrow keys on your keyboard to navigate pages")
+        st.info("💡 **Astuce :** Utilisez les flèches ← et → du clavier pour naviguer")
         
         # Download option
-        with st.expander("📥 Download Original PDF", expanded=False):
+        with st.expander("📥 Télécharger le PDF original", expanded=False):
             with open(course["path"], "rb") as f:
                 st.download_button(
-                    label="Download PDF File",
+                    label="Télécharger le fichier PDF",
                     data=f,
                     file_name=course["filename"],
                     mime="application/pdf"
                 )
     
     else:
-        st.error("❌ Cannot display this PDF. Please make sure the file is valid.")
+        st.error("❌ Impossible d'afficher ce PDF. Veuillez vérifier que le fichier est valide.")
         with open(course["path"], "rb") as f:
             st.download_button(
-                label="📥 Download PDF",
+                label="📥 Télécharger le PDF",
                 data=f,
                 file_name=course["filename"],
                 mime="application/pdf"
