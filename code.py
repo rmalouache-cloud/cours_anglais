@@ -129,7 +129,6 @@ st.markdown("""
         box-shadow: 0 10px 30px rgba(255,20,147,0.2);
     }
     
-    /* Welcome section animation */
     .welcome-section {
         animation: fadeInUp 1s ease-out;
         text-align: center;
@@ -949,4 +948,10 @@ def student_mode(metadata):
                         <div style="background: #fff0f5; padding: 15px; border-radius: 15px; transition: all 0.3s ease;">
                             <strong>💭 Description:</strong><br>
                             {course['description']}<br><br>
-                            <strong>📅 Uploaded
+                            <strong>📅 Uploaded:</strong> {course['upload_date']}<br>
+                            <strong>🎯 Level:</strong> {course['level']}<br>
+                            <strong>📄 Type:</strong> PDF Document
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button
