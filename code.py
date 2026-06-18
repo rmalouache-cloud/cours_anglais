@@ -166,9 +166,9 @@ def convert_pdf_to_base64_images(pdf_path, course_key):
         st.error(f"Erreur lors du traitement du PDF : {str(e)}")
         return None
 
-# Create HTML viewer with navigation en dessous et fullscreen
+# Create HTML viewer with fullscreen en haut et navigation en dessous
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
-    """Generate HTML with navigation below and fullscreen button"""
+    """Generate HTML with fullscreen at top and navigation below"""
     
     # Get current image
     current_img = images_base64[current_page]
@@ -281,6 +281,39 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 transition: width 0.3s ease;
             }}
             
+            /* Fullscreen button EN HAUT */
+            .fullscreen-top {{
+                display: flex;
+                justify-content: flex-end;
+                margin-bottom: 15px;
+            }}
+            
+            .btn-fullscreen {{
+                background: linear-gradient(45deg, #2196F3, #1976D2);
+                color: white;
+                border: none;
+                border-radius: 25px;
+                padding: 12px 30px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-size: 16px;
+                box-shadow: 0 4px 15px rgba(33,150,243,0.3);
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }}
+            
+            .btn-fullscreen:hover {{
+                transform: scale(1.05);
+                box-shadow: 0 6px 25px rgba(33,150,243,0.4);
+                background: linear-gradient(45deg, #1976D2, #0D47A1);
+            }}
+            
+            .btn-fullscreen:active {{
+                transform: scale(0.98);
+            }}
+            
             .image-wrapper {{
                 width: 100%;
                 display: flex;
@@ -302,12 +335,12 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 user-select: none;
             }}
             
-            /* Navigation buttons en dessous */
+            /* Navigation buttons EN DESSOUS */
             .nav-buttons {{
                 display: flex;
                 justify-content: center;
                 gap: 15px;
-                margin: 15px 0;
+                margin: 15px 0 0 0;
                 flex-wrap: wrap;
             }}
             
@@ -335,36 +368,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 transform: none;
             }}
             
-            /* Fullscreen button EN DESSOUS */
-            .btn-fullscreen {{
-                background: linear-gradient(45deg, #2196F3, #1976D2);
-                color: white;
-                border: none;
-                border-radius: 25px;
-                padding: 14px 35px;
-                font-weight: bold;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                font-size: 18px;
-                width: 100%;
-                margin-top: 10px;
-                box-shadow: 0 4px 15px rgba(33,150,243,0.3);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                gap: 10px;
-            }}
-            
-            .btn-fullscreen:hover {{
-                transform: scale(1.02);
-                box-shadow: 0 6px 25px rgba(33,150,243,0.4);
-                background: linear-gradient(45deg, #1976D2, #0D47A1);
-            }}
-            
-            .btn-fullscreen:active {{
-                transform: scale(0.98);
-            }}
-            
             /* Responsive */
             @media (max-width: 768px) {{
                 body {{
@@ -382,17 +385,27 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                     min-width: 100px;
                 }}
                 .btn-fullscreen {{
-                    font-size: 16px;
-                    padding: 12px 25px;
+                    font-size: 14px;
+                    padding: 10px 20px;
                 }}
                 .image-wrapper {{
                     min-height: 250px;
+                }}
+                .fullscreen-top {{
+                    justify-content: center;
                 }}
             }}
         </style>
     </head>
     <body>
         <div class="presentation-container" id="presentationContainer">
+            <!-- FULLSCREEN BUTTON EN HAUT -->
+            <div class="fullscreen-top">
+                <button class="btn-fullscreen" id="fullscreenBtn">
+                    🖥️ PLEIN ÉCRAN
+                </button>
+            </div>
+            
             <div class="header">
                 <h1>📖 {course_title}</h1>
                 <div class="page-info" id="pageInfo">
@@ -417,13 +430,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                     SUIVANT ▶▶
                 </button>
             </div>
-            
-            <!-- Bouton FULLSCREEN EN DESSOUS -->
-            <button class="btn-fullscreen" id="fullscreenBtn">
-                🖥️ PLEIN ÉCRAN
-            </button>
-            
-            <!-- PAS DE MESSAGE D'AIDE SUR LES FLÈCHES -->
         </div>
         
         <script>
@@ -471,11 +477,8 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 }}
             }});
             
-            // Keyboard navigation (flèches ← et →) - CORRIGÉ
+            // Keyboard navigation (flèches ← et →)
             document.addEventListener('keydown', function(e) {{
-                // Vérifier si on est dans la page
-                const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
-                
                 if (e.key === 'ArrowLeft') {{
                     if (currentPage > 0) {{
                         updatePage(currentPage - 1);
@@ -489,7 +492,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                         e.stopPropagation();
                     }}
                 }}
-            }}, true); // Use capture phase
+            }}, true);
             
             // Fullscreen button
             document.getElementById('fullscreenBtn').addEventListener('click', function() {{
@@ -605,7 +608,7 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # Create HTML viewer avec navigation en dessous
+    # Create HTML viewer avec fullscreen en haut
     html_viewer = create_html_viewer(
         images_base64,
         st.session_state.current_page,
