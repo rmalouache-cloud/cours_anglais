@@ -16,7 +16,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS
+# Custom CSS with animations
 st.markdown("""
 <style>
     .stApp {
@@ -48,10 +48,12 @@ st.markdown("""
         margin: 10px 0;
         box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         border: 1px solid #ffc0cb;
+        transition: all 0.3s ease;
     }
     
     .course-card:hover {
         transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(255,20,147,0.15);
     }
     
     @keyframes fadeInUp {
@@ -61,6 +63,107 @@ st.markdown("""
     
     .fade-in {
         animation: fadeInUp 0.6s ease-out;
+    }
+    
+    /* Logo animation */
+    @keyframes float {
+        0% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-15px) rotate(5deg); }
+        100% { transform: translateY(0px) rotate(0deg); }
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-10px) scale(1.1); }
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.2); opacity: 0.7; }
+    }
+    
+    @keyframes shimmer {
+        0% { background-position: -200% center; }
+        100% { background-position: 200% center; }
+    }
+    
+    @keyframes rainbow {
+        0% { filter: hue-rotate(0deg); }
+        100% { filter: hue-rotate(360deg); }
+    }
+    
+    .floating-logo {
+        animation: float 3s ease-in-out infinite;
+        display: inline-block;
+    }
+    
+    .spinning-icon {
+        animation: spin 4s linear infinite;
+        display: inline-block;
+    }
+    
+    .bouncing-icon {
+        animation: bounce 2s ease-in-out infinite;
+        display: inline-block;
+    }
+    
+    .pulsing-icon {
+        animation: pulse 2s ease-in-out infinite;
+        display: inline-block;
+    }
+    
+    .rainbow-text {
+        background: linear-gradient(45deg, #ff69b4, #ff1493, #ff69b4, #ff1493);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shimmer 3s linear infinite;
+        display: inline-block;
+    }
+    
+    .floating-balls {
+        animation: float 2.5s ease-in-out infinite;
+        display: inline-block;
+    }
+    
+    .floating-balls:nth-child(1) { animation-delay: 0s; }
+    .floating-balls:nth-child(2) { animation-delay: 0.3s; }
+    .floating-balls:nth-child(3) { animation-delay: 0.6s; }
+    .floating-balls:nth-child(4) { animation-delay: 0.9s; }
+    
+    /* Ball animation container */
+    .ball-container {
+        display: inline-block;
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    .ball-container:hover {
+        animation-play-state: paused;
+        transform: scale(1.2);
+    }
+    
+    /* Gradient text animation */
+    .animated-gradient {
+        background: linear-gradient(45deg, #ff69b4, #ff1493, #ff69b4);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shimmer 2s linear infinite;
+    }
+    
+    /* Hover animations for cards */
+    .hover-lift {
+        transition: all 0.3s ease;
+    }
+    
+    .hover-lift:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 10px 30px rgba(255,20,147,0.2);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -199,6 +302,12 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 padding: 30px;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.1);
                 transition: all 0.3s ease;
+                animation: fadeInUp 0.6s ease-out;
+            }}
+            
+            @keyframes fadeInUp {{
+                from {{ transform: translateY(20px); opacity: 0; }}
+                to {{ transform: translateY(0); opacity: 1; }}
             }}
             
             .presentation-container:fullscreen {{
@@ -332,6 +441,11 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 border-radius: 8px;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.08);
                 user-select: none;
+                transition: all 0.3s ease;
+            }}
+            
+            .page-image:hover {{
+                transform: scale(1.01);
             }}
             
             .nav-buttons {{
@@ -522,11 +636,20 @@ def display_presentation(course):
             del st.session_state.pdf_images
         st.rerun()
     
-    # Title
+    # Title with animated emojis
     st.markdown(f"""
         <div style="text-align: center;">
-            <h2>📖 {course['title']}</h2>
-            <p style="color: #c2185b;">Level {course['level']} | {course['upload_date']}</p>
+            <h2>
+                <span class="floating-logo">📖</span> 
+                {course['title']} 
+                <span class="floating-logo" style="animation-delay: 0.5s;">✨</span>
+            </h2>
+            <p style="color: #c2185b;">
+                <span class="bouncing-icon">🎯</span> 
+                Level {course['level']} 
+                <span class="pulsing-icon">📅</span> 
+                {course['upload_date']}
+            </p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -568,7 +691,13 @@ def display_presentation(course):
         st.write("")
     
     with col2:
-        st.markdown(f"<h3 style='text-align: center; color: #c2185b;'>Page {st.session_state.current_page + 1} / {total_pages}</h3>", unsafe_allow_html=True)
+        st.markdown(f"""
+            <h3 style="text-align: center; color: #c2185b;">
+                <span class="floating-logo">📄</span> 
+                Page {st.session_state.current_page + 1} / {total_pages}
+                <span class="floating-logo" style="animation-delay: 0.5s;">📄</span>
+            </h3>
+        """, unsafe_allow_html=True)
         progress = (st.session_state.current_page + 1) / total_pages
         st.progress(progress)
     
@@ -605,17 +734,30 @@ def main():
     if 'viewing_course' not in st.session_state:
         st.session_state.viewing_course = None
     
-    # Title
+    # Title with animated emojis
     st.markdown("""
         <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
-            <h1>🌸 English Teacher's Platform 🌸</h1>
-            <p style="color: #c2185b; font-size: 18px;">✨ Make learning beautiful and fun! ✨</p>
+            <h1>
+                <span class="floating-logo">🌸</span> 
+                <span class="rainbow-text">English Teacher's Platform</span> 
+                <span class="floating-logo" style="animation-delay: 0.5s;">🌸</span>
+            </h1>
+            <p style="color: #c2185b; font-size: 18px;">
+                <span class="bouncing-icon">✨</span> 
+                Make learning beautiful and fun! 
+                <span class="bouncing-icon" style="animation-delay: 0.3s;">✨</span>
+            </p>
         </div>
     """, unsafe_allow_html=True)
     
+    # Animated icons row
     st.markdown("""
         <div style="text-align: center; margin-bottom: 20px; font-size: 30px;">
-            📖 📝 🎓 ✏️ 📕
+            <span class="floating-logo">📖</span> 
+            <span class="floating-logo" style="animation-delay: 0.2s;">📝</span> 
+            <span class="floating-logo" style="animation-delay: 0.4s;">🎓</span> 
+            <span class="floating-logo" style="animation-delay: 0.6s;">✏️</span> 
+            <span class="floating-logo" style="animation-delay: 0.8s;">📕</span>
         </div>
     """, unsafe_allow_html=True)
     
@@ -623,8 +765,14 @@ def main():
     with st.sidebar:
         st.markdown("""
             <div style="text-align: center; padding: 20px 0;">
-                <h3 style="color: #ff69b4;">✨ Welcome! ✨</h3>
-                <div style="font-size: 30px;">👩‍🏫</div>
+                <h3 style="color: #ff69b4;">
+                    <span class="bouncing-icon">✨</span> 
+                    Welcome! 
+                    <span class="bouncing-icon" style="animation-delay: 0.3s;">✨</span>
+                </h3>
+                <div style="font-size: 30px;">
+                    <span class="floating-logo">👩‍🏫</span>
+                </div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -730,8 +878,8 @@ def teacher_mode(metadata):
                 with col1:
                     file_type = "📄" if course.get("type", "pdf") == "pdf" else "📄"
                     st.markdown(f"""
-                        <div class="course-card">
-                            <strong>{file_type} {course['title']}</strong><br>
+                        <div class="course-card hover-lift">
+                            <strong><span class="floating-logo">{file_type}</span> {course['title']}</strong><br>
                             <small>🎯 Level {course['level']}</small><br>
                             <small>📅 {course['upload_date']}</small><br>
                             <small>💭 {course['description']}</small>
@@ -795,7 +943,7 @@ def student_mode(metadata):
                 
                 with col1:
                     st.markdown(f"""
-                        <div style="background: #fff0f5; padding: 15px; border-radius: 15px;">
+                        <div style="background: #fff0f5; padding: 15px; border-radius: 15px; transition: all 0.3s ease;">
                             <strong>💭 Description:</strong><br>
                             {course['description']}<br><br>
                             <strong>📅 Uploaded:</strong> {course['upload_date']}<br>
@@ -831,18 +979,8 @@ def student_mode(metadata):
                         "🌸 Ask questions if something is unclear!"
                     ]
                     import random
-                    st.info(f"💖 Tip: {random.choice(tips)}")
+                    tip_emoji = random.choice(["💖", "✨", "🌟", "💫"])
+                    st.info(f"{tip_emoji} Tip: {random.choice(tips)}")
     else:
         st.warning(f"💔 No courses available for Level {full_level} yet.")
-        st.markdown("""
-            <div style="text-align: center; padding: 40px;">
-                <div style="font-size: 50px;">📚✨</div>
-                <p style="color: #c2185b;">Ask your teacher to upload courses for this level!</p>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-if __name__ == "__main__":
-    init_folders()
-    main()
+        st.mark
