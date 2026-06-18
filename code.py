@@ -185,15 +185,6 @@ st.markdown("""
         color: #ff1493 !important;
     }
     
-    /* Animation des images dans les cartes */
-    .course-card img {
-        transition: transform 0.5s ease;
-    }
-    
-    .course-card:hover img {
-        transform: scale(1.1) rotate(5deg);
-    }
-    
     /* Animation de scintillement des étoiles */
     .sparkle {
         animation: sparkle 1.5s ease-in-out infinite;
@@ -212,45 +203,6 @@ st.markdown("""
     @keyframes titleGlow {
         0%, 100% { text-shadow: 0 0 20px rgba(255,105,180,0.3); }
         50% { text-shadow: 0 0 40px rgba(255,105,180,0.6), 0 0 60px rgba(255,105,180,0.3); }
-    }
-    
-    /* Animation de chargement des pages */
-    .page-enter {
-        animation: pageEnter 0.8s ease-out;
-    }
-    
-    @keyframes pageEnter {
-        from {
-            opacity: 0;
-            transform: translateX(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-    
-    /* Effet de vague sur les éléments */
-    .wave-effect {
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .wave-effect::after {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,105,180,0.1) 0%, transparent 70%);
-        animation: wave 4s ease-in-out infinite;
-        pointer-events: none;
-    }
-    
-    @keyframes wave {
-        0%, 100% { transform: rotate(0deg); }
-        50% { transform: rotate(180deg); }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -358,7 +310,7 @@ def convert_pdf_to_base64_images(pdf_path, course_key):
 
 # Create HTML viewer avec animations
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
-    """Generate complete HTML with animations, fullscreen button at top and navigation below"""
+    """Generate complete HTML with animations"""
     
     # Get current image
     current_img = images_base64[current_page]
@@ -423,34 +375,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 animation: none;
             }}
             
-            .presentation-container:-webkit-full-screen {{
-                max-width: 100%;
-                width: 100vw;
-                height: 100vh;
-                border-radius: 0;
-                padding: 20px;
-                overflow-y: auto;
-                background: white;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                animation: none;
-            }}
-            
-            .presentation-container:-moz-full-screen {{
-                max-width: 100%;
-                width: 100vw;
-                height: 100vh;
-                border-radius: 0;
-                padding: 20px;
-                overflow-y: auto;
-                background: white;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                animation: none;
-            }}
-            
             .fullscreen-top {{
                 display: flex;
                 justify-content: flex-end;
@@ -483,10 +407,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 transform: scale(1.08) rotate(-2deg);
                 box-shadow: 0 8px 35px rgba(33,150,243,0.5);
                 background: linear-gradient(45deg, #1976D2, #0D47A1);
-            }}
-            
-            .btn-fullscreen:active {{
-                transform: scale(0.95);
             }}
             
             .header {{
@@ -580,12 +500,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 box-shadow: 0 4px 15px rgba(0,0,0,0.08);
                 user-select: none;
                 transition: all 0.5s ease;
-                animation: imageFloat 4s ease-in-out infinite;
-            }}
-            
-            @keyframes imageFloat {{
-                0%, 100% {{ transform: translateY(0px); }}
-                50% {{ transform: translateY(-5px); }}
             }}
             
             .nav-buttons {{
@@ -625,10 +539,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 cursor: not-allowed;
                 transform: none;
                 animation: none;
-            }}
-            
-            .btn-nav:active:not(:disabled) {{
-                transform: scale(0.95);
             }}
             
             @media (max-width: 768px) {{
@@ -709,7 +619,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 
                 currentPage = index;
                 pageImage.style.animation = 'none';
-                pageImage.offsetHeight; // Trigger reflow
+                pageImage.offsetHeight;
                 pageImage.style.animation = 'imageFade 0.6s ease-out';
                 pageImage.src = 'data:image/png;base64,' + imagesBase64[index];
                 
@@ -1009,4 +919,59 @@ def teacher_mode(metadata):
         if metadata:
             levels_count = {}
             for course in metadata.values():
-                level =
+                level = course["level"]
+                levels_count[level] = levels_count.get(level, 0) + 1
+            
+            st.write("**Courses per level:**")
+            for level, count in sorted(levels_count.items()):
+                st.progress(min(count/10, 1.0), text=f"Level {level}: {count} courses")
+    
+    st.markdown("---")
+    st.subheader("📚 Manage Your Courses")
+    
+    if metadata:
+        filter_level = st.selectbox("Filter by level:", ["All"] + sorted(set(c["level"] for c in metadata.values())))
+        
+        for key, course in metadata.items():
+            if filter_level != "All" and course["level"] != filter_level:
+                continue
+                
+            with st.container():
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    file_type = "📄" if course.get("type", "pdf") == "pdf" else "📄"
+                    st.markdown(f"""
+                        <div class="course-card">
+                            <strong>{file_type} {course['title']}</strong><br>
+                            <small>🎯 Level {course['level']}</small><br>
+                            <small>📅 {course['upload_date']}</small><br>
+                            <small>💭 {course['description']}</small>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button(f"🎬 View & Present", key=f"view_{key}"):
+                        if 'pdf_images' in st.session_state:
+                            del st.session_state.pdf_images
+                        if 'current_pdf_key' in st.session_state:
+                            del st.session_state.current_pdf_key
+                        st.session_state.viewing_course = course
+                        st.rerun()
+                
+                with col2:
+                    if st.button(f"📥 Download", key=f"down_{key}"):
+                        with open(course["path"], "rb") as f:
+                            st.download_button(
+                                label="Click to download",
+                                data=f,
+                                file_name=course["filename"],
+                                key=f"down_btn_{key}",
+                                hidden=True
+                            )
+                
+                with col3:
+                    if st.button(f"🗑️ Delete", key=f"del_{key}"):
+                        course_folder = Path(course["path"]).parent
+                        images_folder = course_folder / "images"
+                        pdf_pages_folder = Path(f"courses/pdf_pages/{key.replace('.pdf', '')}")
+                        if delete_course(key, course["path"], images_folder, pdf_pages_folder):
+                            st.warning
