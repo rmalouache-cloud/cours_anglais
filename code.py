@@ -41,21 +41,6 @@ st.markdown("""
         transform: scale(1.05);
     }
     
-    /* Style spécifique pour le bouton fullscreen */
-    .fullscreen-btn-container .stButton > button {
-        background: linear-gradient(45deg, #2196F3, #1976D2);
-        font-size: 18px;
-        padding: 14px 35px;
-        width: 100%;
-        box-shadow: 0 4px 15px rgba(33,150,243,0.3);
-    }
-    
-    .fullscreen-btn-container .stButton > button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 6px 25px rgba(33,150,243,0.4);
-        background: linear-gradient(45deg, #1976D2, #0D47A1);
-    }
-    
     .course-card {
         background: white;
         border-radius: 20px;
@@ -181,9 +166,9 @@ def convert_pdf_to_base64_images(pdf_path, course_key):
         st.error(f"Erreur lors du traitement du PDF : {str(e)}")
         return None
 
-# Create HTML viewer avec navigation en dessous (sans fullscreen)
+# Create HTML viewer avec navigation en dessous
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
-    """Generate HTML with navigation below (no fullscreen button inside)"""
+    """Generate HTML with navigation below"""
     
     # Get current image
     current_img = images_base64[current_page]
@@ -216,7 +201,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 transition: all 0.3s ease;
             }}
             
-            /* Fullscreen styles pour le conteneur */
             .presentation-container:fullscreen {{
                 max-width: 100%;
                 width: 100vw;
@@ -317,7 +301,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 user-select: none;
             }}
             
-            /* Navigation buttons EN DESSOUS */
             .nav-buttons {{
                 display: flex;
                 justify-content: center;
@@ -350,7 +333,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 transform: none;
             }}
             
-            /* Responsive */
             @media (max-width: 768px) {{
                 body {{
                     padding: 10px;
@@ -389,7 +371,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 <img id="pageImage" class="page-image" src="data:image/png;base64,{current_img}" alt="Page {current_page + 1}" />
             </div>
             
-            <!-- Boutons de navigation EN DESSOUS -->
             <div class="nav-buttons">
                 <button class="btn-nav" id="prevBtn" {"disabled" if current_page == 0 else ""}>
                     ◀◀ PRÉCÉDENT
@@ -401,12 +382,10 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
         </div>
         
         <script>
-            // Store data
             const imagesBase64 = {json.dumps(images_base64)};
             let currentPage = {current_page};
             const totalPages = {total_pages};
             
-            // Get elements
             const pageImage = document.getElementById('pageImage');
             const pageInfo = document.getElementById('pageInfo');
             const progressFill = document.getElementById('progressFill');
@@ -414,7 +393,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
             const nextBtn = document.getElementById('nextBtn');
             const container = document.getElementById('presentationContainer');
             
-            // Update page function
             function updatePage(index) {{
                 if (index < 0 || index >= totalPages) return;
                 
@@ -422,47 +400,32 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 pageImage.src = 'data:image/png;base64,' + imagesBase64[index];
                 pageInfo.textContent = 'Page ' + (index + 1) + ' / ' + totalPages;
                 
-                // Update progress
                 const progressPercent = ((index + 1) / totalPages) * 100;
                 progressFill.style.width = progressPercent + '%';
                 
-                // Update buttons
                 prevBtn.disabled = (index === 0);
                 nextBtn.disabled = (index === totalPages - 1);
             }}
             
-            // Previous button
             prevBtn.addEventListener('click', function() {{
-                if (currentPage > 0) {{
-                    updatePage(currentPage - 1);
-                }}
+                if (currentPage > 0) updatePage(currentPage - 1);
             }});
             
-            // Next button
             nextBtn.addEventListener('click', function() {{
-                if (currentPage < totalPages - 1) {{
+                if (currentPage < totalPages - 1) updatePage(currentPage + 1);
+            }});
+            
+            document.addEventListener('keydown', function(e) {{
+                if (e.key === 'ArrowLeft' && currentPage > 0) {{
+                    updatePage(currentPage - 1);
+                    e.preventDefault();
+                }} else if (e.key === 'ArrowRight' && currentPage < totalPages - 1) {{
                     updatePage(currentPage + 1);
+                    e.preventDefault();
                 }}
             }});
             
-            // Keyboard navigation (flèches ← et →)
-            document.addEventListener('keydown', function(e) {{
-                if (e.key === 'ArrowLeft') {{
-                    if (currentPage > 0) {{
-                        updatePage(currentPage - 1);
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }}
-                }} else if (e.key === 'ArrowRight') {{
-                    if (currentPage < totalPages - 1) {{
-                        updatePage(currentPage + 1);
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }}
-                }}
-            }}, true);
-            
-            // Fonction pour le fullscreen appelée depuis l'extérieur
+            // Fonction pour le fullscreen
             window.toggleFullscreen = function() {{
                 if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
                     if (container.requestFullscreen) {{
@@ -487,17 +450,8 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 }}
             }};
             
-            // Detect fullscreen change
             document.addEventListener('fullscreenchange', function() {{
                 if (document.fullscreenElement) {{
-                    document.querySelector('.presentation-container').style.maxWidth = '100%';
-                }} else {{
-                    document.querySelector('.presentation-container').style.maxWidth = '1100px';
-                }}
-            }});
-            
-            document.addEventListener('webkitfullscreenchange', function() {{
-                if (document.webkitFullscreenElement) {{
                     document.querySelector('.presentation-container').style.maxWidth = '100%';
                 }} else {{
                     document.querySelector('.presentation-container').style.maxWidth = '1100px';
@@ -576,24 +530,49 @@ def display_presentation(course):
     
     st.markdown("---")
     
-    # BOUTON FULLSCREEN avec st.button (fonctionne !)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button("🖥️ PLEIN ÉCRAN", use_container_width=True, key="fullscreen_btn"):
-            # Injecter du JavaScript pour appeler toggleFullscreen
-            fullscreen_js = """
-            <script>
-                var iframe = document.querySelector('iframe');
-                if (iframe && iframe.contentWindow) {
-                    iframe.contentWindow.toggleFullscreen();
-                }
-            </script>
-            """
-            st.components.v1.html(fullscreen_js, height=0)
+    # BOUTON FULLSCREEN avec st.components.v1.html() (fonctionne !)
+    fullscreen_button_html = """
+    <div style="display: flex; justify-content: center; margin: 10px 0;">
+        <button onclick="
+            var iframes = document.querySelectorAll('iframe');
+            for (var i = 0; i < iframes.length; i++) {
+                try {
+                    if (iframes[i].contentWindow && iframes[i].contentWindow.toggleFullscreen) {
+                        iframes[i].contentWindow.toggleFullscreen();
+                        break;
+                    }
+                } catch(e) {}
+            }
+        " style="
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 14px 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 18px;
+            box-shadow: 0 4px 15px rgba(33,150,243,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 400px;
+        "
+        onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 6px 25px rgba(33,150,243,0.4)';"
+        onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(33,150,243,0.3)';"
+        >
+            🖥️ PLEIN ÉCRAN
+        </button>
+    </div>
+    """
+    st.components.v1.html(fullscreen_button_html, height=80)
     
     st.markdown("---")
     
-    # Create HTML viewer avec navigation en dessous (sans fullscreen)
+    # Create HTML viewer avec navigation en dessous
     html_viewer = create_html_viewer(
         images_base64,
         st.session_state.current_page,
