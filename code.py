@@ -16,17 +16,33 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS
+# Custom CSS avec animations
 st.markdown("""
 <style>
+    /* Animations de fond */
     .stApp {
         background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 100%);
+        animation: gradientShift 10s ease infinite;
     }
     
+    @keyframes gradientShift {
+        0% { background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 100%); }
+        50% { background: linear-gradient(135deg, #ffd9e8 0%, #ffe6f0 100%); }
+        100% { background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 100%); }
+    }
+    
+    /* Animation des titres */
     h1, h2, h3 {
         color: #c2185b !important;
+        animation: titlePulse 2s ease-in-out infinite;
     }
     
+    @keyframes titlePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+    }
+    
+    /* Animation des boutons */
     .stButton > button {
         background: linear-gradient(45deg, #ff69b4, #ff1493);
         color: white;
@@ -35,12 +51,20 @@ st.markdown("""
         padding: 12px 25px;
         font-weight: bold;
         transition: all 0.3s ease;
+        animation: buttonFloat 3s ease-in-out infinite;
+    }
+    
+    @keyframes buttonFloat {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-5px); }
     }
     
     .stButton > button:hover {
-        transform: scale(1.05);
+        transform: scale(1.05) !important;
+        animation: none;
     }
     
+    /* Animation des cartes de cours */
     .course-card {
         background: white;
         border-radius: 20px;
@@ -48,19 +72,185 @@ st.markdown("""
         margin: 10px 0;
         box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         border: 1px solid #ffc0cb;
+        transition: all 0.3s ease;
+        animation: cardFadeIn 0.6s ease-out;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .course-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,105,180,0.1), transparent);
+        transition: left 0.5s ease;
+    }
+    
+    .course-card:hover::before {
+        left: 100%;
     }
     
     .course-card:hover {
-        transform: translateY(-5px);
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 10px 30px rgba(255,20,147,0.2);
+    }
+    
+    @keyframes cardFadeIn {
+        from { 
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to { 
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Animation d'apparition */
+    .fade-in {
+        animation: fadeInUp 0.6s ease-out;
     }
     
     @keyframes fadeInUp {
-        from { transform: translateY(20px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
+        from { 
+            transform: translateY(20px); 
+            opacity: 0; 
+        }
+        to { 
+            transform: translateY(0); 
+            opacity: 1; 
+        }
     }
     
-    .fade-in {
-        animation: fadeInUp 0.6s ease-out;
+    /* Animation des émojis */
+    .floating-emoji {
+        display: inline-block;
+        animation: floatEmoji 3s ease-in-out infinite;
+    }
+    
+    @keyframes floatEmoji {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        25% { transform: translateY(-10px) rotate(5deg); }
+        75% { transform: translateY(10px) rotate(-5deg); }
+    }
+    
+    /* Animation des pages PDF */
+    .pdf-page-container {
+        animation: pageSlide 0.5s ease-out;
+    }
+    
+    @keyframes pageSlide {
+        from {
+            opacity: 0;
+            transform: scale(0.95) rotate(-2deg);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+    }
+    
+    /* Animation des icônes */
+    .icon-bounce {
+        display: inline-block;
+        animation: bounce 2s ease-in-out infinite;
+    }
+    
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-15px); }
+    }
+    
+    /* Animation de la barre de progression */
+    .stProgress > div > div {
+        background: linear-gradient(45deg, #ff69b4, #ff1493) !important;
+        animation: progressGlow 2s ease-in-out infinite;
+    }
+    
+    @keyframes progressGlow {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    /* Animation des expanders */
+    .streamlit-expanderHeader {
+        transition: all 0.3s ease !important;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        transform: translateX(5px);
+        color: #ff1493 !important;
+    }
+    
+    /* Animation des images dans les cartes */
+    .course-card img {
+        transition: transform 0.5s ease;
+    }
+    
+    .course-card:hover img {
+        transform: scale(1.1) rotate(5deg);
+    }
+    
+    /* Animation de scintillement des étoiles */
+    .sparkle {
+        animation: sparkle 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes sparkle {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+    
+    /* Animation du titre principal */
+    .main-title {
+        animation: titleGlow 3s ease-in-out infinite;
+    }
+    
+    @keyframes titleGlow {
+        0%, 100% { text-shadow: 0 0 20px rgba(255,105,180,0.3); }
+        50% { text-shadow: 0 0 40px rgba(255,105,180,0.6), 0 0 60px rgba(255,105,180,0.3); }
+    }
+    
+    /* Animation de chargement des pages */
+    .page-enter {
+        animation: pageEnter 0.8s ease-out;
+    }
+    
+    @keyframes pageEnter {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Effet de vague sur les éléments */
+    .wave-effect {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .wave-effect::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,105,180,0.1) 0%, transparent 70%);
+        animation: wave 4s ease-in-out infinite;
+        pointer-events: none;
+    }
+    
+    @keyframes wave {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(180deg); }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -166,9 +356,9 @@ def convert_pdf_to_base64_images(pdf_path, course_key):
         st.error(f"Erreur lors du traitement du PDF : {str(e)}")
         return None
 
-# Create HTML viewer complet avec bouton fullscreen EN HAUT
+# Create HTML viewer avec animations
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
-    """Generate complete HTML with fullscreen button at top and navigation below"""
+    """Generate complete HTML with animations, fullscreen button at top and navigation below"""
     
     # Get current image
     current_img = images_base64[current_page]
@@ -189,6 +379,12 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 font-family: 'Segoe UI', Arial, sans-serif;
                 background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 100%);
                 padding: 20px;
+                animation: bodyFade 1s ease-out;
+            }}
+            
+            @keyframes bodyFade {{
+                from {{ opacity: 0; }}
+                to {{ opacity: 1; }}
             }}
             
             .presentation-container {{
@@ -198,7 +394,19 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 border-radius: 20px;
                 padding: 30px;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-                transition: all 0.3s ease;
+                transition: all 0.5s ease;
+                animation: containerSlide 0.8s ease-out;
+            }}
+            
+            @keyframes containerSlide {{
+                from {{
+                    opacity: 0;
+                    transform: translateY(30px) scale(0.95);
+                }}
+                to {{
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }}
             }}
             
             .presentation-container:fullscreen {{
@@ -212,6 +420,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
+                animation: none;
             }}
             
             .presentation-container:-webkit-full-screen {{
@@ -225,6 +434,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
+                animation: none;
             }}
             
             .presentation-container:-moz-full-screen {{
@@ -238,9 +448,9 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
+                animation: none;
             }}
             
-            /* Style du bouton fullscreen EN HAUT */
             .fullscreen-top {{
                 display: flex;
                 justify-content: flex-end;
@@ -255,22 +465,28 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 padding: 12px 30px;
                 font-weight: bold;
                 cursor: pointer;
-                transition: all 0.3s ease;
+                transition: all 0.4s ease;
                 font-size: 16px;
                 box-shadow: 0 4px 15px rgba(33,150,243,0.3);
                 display: flex;
                 align-items: center;
                 gap: 10px;
+                animation: fullscreenPulse 2s ease-in-out infinite;
+            }}
+            
+            @keyframes fullscreenPulse {{
+                0%, 100% {{ box-shadow: 0 4px 15px rgba(33,150,243,0.3); }}
+                50% {{ box-shadow: 0 4px 30px rgba(33,150,243,0.6); }}
             }}
             
             .btn-fullscreen:hover {{
-                transform: scale(1.05);
-                box-shadow: 0 6px 25px rgba(33,150,243,0.4);
+                transform: scale(1.08) rotate(-2deg);
+                box-shadow: 0 8px 35px rgba(33,150,243,0.5);
                 background: linear-gradient(45deg, #1976D2, #0D47A1);
             }}
             
             .btn-fullscreen:active {{
-                transform: scale(0.98);
+                transform: scale(0.95);
             }}
             
             .header {{
@@ -286,6 +502,12 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 color: #c2185b;
                 font-size: 22px;
                 margin: 0;
+                animation: titleGlow 3s ease-in-out infinite;
+            }}
+            
+            @keyframes titleGlow {{
+                0%, 100% {{ text-shadow: 0 0 10px rgba(255,105,180,0.2); }}
+                50% {{ text-shadow: 0 0 20px rgba(255,105,180,0.4), 0 0 40px rgba(255,105,180,0.2); }}
             }}
             
             .page-info {{
@@ -295,6 +517,12 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 background: #ffe6f0;
                 padding: 6px 16px;
                 border-radius: 20px;
+                animation: infoPulse 2s ease-in-out infinite;
+            }}
+            
+            @keyframes infoPulse {{
+                0%, 100% {{ transform: scale(1); }}
+                50% {{ transform: scale(1.05); }}
             }}
             
             .progress-bar {{
@@ -310,7 +538,13 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 width: {((current_page + 1) / total_pages) * 100}%;
                 height: 100%;
                 background: linear-gradient(45deg, #ff69b4, #ff1493);
-                transition: width 0.3s ease;
+                transition: width 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                animation: progressGlow 2s ease-in-out infinite;
+            }}
+            
+            @keyframes progressGlow {{
+                0%, 100% {{ opacity: 1; }}
+                50% {{ opacity: 0.7; }}
             }}
             
             .image-wrapper {{
@@ -323,6 +557,19 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 border-radius: 12px;
                 padding: 10px;
                 margin-bottom: 20px;
+                transition: all 0.5s ease;
+                animation: imageFade 0.6s ease-out;
+            }}
+            
+            @keyframes imageFade {{
+                from {{
+                    opacity: 0;
+                    transform: scale(0.95);
+                }}
+                to {{
+                    opacity: 1;
+                    transform: scale(1);
+                }}
             }}
             
             .page-image {{
@@ -332,6 +579,13 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 border-radius: 8px;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.08);
                 user-select: none;
+                transition: all 0.5s ease;
+                animation: imageFloat 4s ease-in-out infinite;
+            }}
+            
+            @keyframes imageFloat {{
+                0%, 100% {{ transform: translateY(0px); }}
+                50% {{ transform: translateY(-5px); }}
             }}
             
             .nav-buttons {{
@@ -350,20 +604,31 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 padding: 12px 30px;
                 font-weight: bold;
                 cursor: pointer;
-                transition: all 0.3s ease;
+                transition: all 0.4s ease;
                 font-size: 16px;
                 min-width: 140px;
+                animation: buttonPulse 3s ease-in-out infinite;
+            }}
+            
+            @keyframes buttonPulse {{
+                0%, 100% {{ transform: scale(1); }}
+                50% {{ transform: scale(1.03); }}
             }}
             
             .btn-nav:hover:not(:disabled) {{
-                transform: scale(1.05);
-                box-shadow: 0 5px 15px rgba(255,20,147,0.3);
+                transform: scale(1.1) rotate(2deg);
+                box-shadow: 0 5px 25px rgba(255,20,147,0.4);
             }}
             
             .btn-nav:disabled {{
                 opacity: 0.5;
                 cursor: not-allowed;
                 transform: none;
+                animation: none;
+            }}
+            
+            .btn-nav:active:not(:disabled) {{
+                transform: scale(0.95);
             }}
             
             @media (max-width: 768px) {{
@@ -396,7 +661,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
     </head>
     <body>
         <div class="presentation-container" id="presentationContainer">
-            <!-- FULLSCREEN BUTTON EN HAUT -->
             <div class="fullscreen-top">
                 <button class="btn-fullscreen" id="fullscreenBtn">
                     🖥️ PLEIN ÉCRAN
@@ -444,7 +708,11 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 if (index < 0 || index >= totalPages) return;
                 
                 currentPage = index;
+                pageImage.style.animation = 'none';
+                pageImage.offsetHeight; // Trigger reflow
+                pageImage.style.animation = 'imageFade 0.6s ease-out';
                 pageImage.src = 'data:image/png;base64,' + imagesBase64[index];
+                
                 pageInfo.textContent = 'Page ' + (index + 1) + ' / ' + totalPages;
                 
                 const progressPercent = ((index + 1) / totalPages) * 100;
@@ -472,7 +740,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 }}
             }});
             
-            // Fullscreen - le bouton est dans le même document !
             document.getElementById('fullscreenBtn').addEventListener('click', function() {{
                 if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
                     if (container.requestFullscreen) {{
@@ -515,18 +782,28 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
-    # Back button
+    # Back button with animation
     if st.button("◀ Back to Courses", use_container_width=False):
         st.session_state['viewing_course'] = None
         if 'pdf_images' in st.session_state:
             del st.session_state.pdf_images
         st.rerun()
     
-    # Title
+    # Title with animated emojis
     st.markdown(f"""
-        <div style="text-align: center;">
-            <h2>📖 {course['title']}</h2>
-            <p style="color: #c2185b;">Level {course['level']} | {course['upload_date']}</p>
+        <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
+            <h2 style="font-size: 28px;">
+                <span class="floating-emoji">📖</span> 
+                {course['title']} 
+                <span class="floating-emoji" style="animation-delay: 0.5s;">✨</span>
+            </h2>
+            <p style="color: #c2185b; font-size: 18px;">
+                <span class="icon-bounce">🎯</span> 
+                Level {course['level']} 
+                <span style="margin: 0 10px;">|</span> 
+                <span class="icon-bounce" style="animation-delay: 0.3s;">📅</span> 
+                {course['upload_date']}
+            </p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -561,14 +838,22 @@ def display_presentation(course):
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 0
     
-    # Affichage du numéro de page et progression (simplifié)
+    # Affichage du numéro de page et progression avec animations
     col1, col2, col3 = st.columns([1, 3, 1])
     
     with col1:
         st.write("")
     
     with col2:
-        st.markdown(f"<h3 style='text-align: center; color: #c2185b;'>Page {st.session_state.current_page + 1} / {total_pages}</h3>", unsafe_allow_html=True)
+        st.markdown(f"""
+            <div style="text-align: center; animation: fadeInUp 0.6s ease-out;">
+                <h3 style="color: #c2185b; font-size: 20px;">
+                    <span class="floating-emoji">📄</span> 
+                    Page {st.session_state.current_page + 1} / {total_pages}
+                    <span class="floating-emoji" style="animation-delay: 0.3s;">📄</span>
+                </h3>
+            </div>
+        """, unsafe_allow_html=True)
         progress = (st.session_state.current_page + 1) / total_pages
         st.progress(progress)
     
@@ -588,14 +873,15 @@ def display_presentation(course):
     # Display the HTML component
     st.components.v1.html(html_viewer, height=780, scrolling=True)
     
-    # Download option
+    # Download option with animation
     with st.expander("📥 Télécharger le PDF original", expanded=False):
         with open(course["path"], "rb") as f:
             st.download_button(
-                label="Télécharger le fichier PDF",
+                label="📥 Télécharger le fichier PDF",
                 data=f,
                 file_name=course["filename"],
-                mime="application/pdf"
+                mime="application/pdf",
+                use_container_width=True
             )
     
     st.markdown('</div>', unsafe_allow_html=True)
@@ -605,26 +891,41 @@ def main():
     if 'viewing_course' not in st.session_state:
         st.session_state.viewing_course = None
     
-    # Title
+    # Title with animations
     st.markdown("""
         <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
-            <h1>🌸 English Teacher's Platform 🌸</h1>
-            <p style="color: #c2185b; font-size: 18px;">✨ Make learning beautiful and fun! ✨</p>
+            <h1 class="main-title" style="font-size: 42px;">
+                <span class="floating-emoji">🌸</span> 
+                English Teacher's Platform 
+                <span class="floating-emoji" style="animation-delay: 0.5s;">🌸</span>
+            </h1>
+            <p style="color: #c2185b; font-size: 20px; animation: fadeInUp 1s ease-out;">
+                <span class="sparkle">✨</span> 
+                Make learning beautiful and fun! 
+                <span class="sparkle" style="animation-delay: 0.5s;">✨</span>
+            </p>
         </div>
     """, unsafe_allow_html=True)
     
     st.markdown("""
-        <div style="text-align: center; margin-bottom: 20px; font-size: 30px;">
-            📖 📝 🎓 ✏️ 📕
+        <div style="text-align: center; margin-bottom: 20px; font-size: 35px; animation: fadeInUp 1.2s ease-out;">
+            <span class="floating-emoji">📖</span> 
+            <span class="floating-emoji" style="animation-delay: 0.2s;">📝</span> 
+            <span class="floating-emoji" style="animation-delay: 0.4s;">🎓</span> 
+            <span class="floating-emoji" style="animation-delay: 0.6s;">✏️</span> 
+            <span class="floating-emoji" style="animation-delay: 0.8s;">📕</span>
         </div>
     """, unsafe_allow_html=True)
     
     # Sidebar
     with st.sidebar:
         st.markdown("""
-            <div style="text-align: center; padding: 20px 0;">
-                <h3 style="color: #ff69b4;">✨ Welcome! ✨</h3>
-                <div style="font-size: 30px;">👩‍🏫</div>
+            <div style="text-align: center; padding: 20px 0; animation: fadeInUp 0.8s ease-out;">
+                <h3 style="color: #ff69b4; font-size: 24px;">
+                    <span class="floating-emoji">✨</span> Welcome! 
+                    <span class="floating-emoji" style="animation-delay: 0.5s;">✨</span>
+                </h3>
+                <div style="font-size: 50px; animation: bounce 2s ease-in-out infinite;">👩‍🏫</div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -708,141 +1009,4 @@ def teacher_mode(metadata):
         if metadata:
             levels_count = {}
             for course in metadata.values():
-                level = course["level"]
-                levels_count[level] = levels_count.get(level, 0) + 1
-            
-            st.write("**Courses per level:**")
-            for level, count in sorted(levels_count.items()):
-                st.progress(min(count/10, 1.0), text=f"Level {level}: {count} courses")
-    
-    st.markdown("---")
-    st.subheader("📚 Manage Your Courses")
-    
-    if metadata:
-        filter_level = st.selectbox("Filter by level:", ["All"] + sorted(set(c["level"] for c in metadata.values())))
-        
-        for key, course in metadata.items():
-            if filter_level != "All" and course["level"] != filter_level:
-                continue
-                
-            with st.container():
-                col1, col2, col3 = st.columns([3, 1, 1])
-                with col1:
-                    file_type = "📄" if course.get("type", "pdf") == "pdf" else "📄"
-                    st.markdown(f"""
-                        <div class="course-card">
-                            <strong>{file_type} {course['title']}</strong><br>
-                            <small>🎯 Level {course['level']}</small><br>
-                            <small>📅 {course['upload_date']}</small><br>
-                            <small>💭 {course['description']}</small>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if st.button(f"🎬 View & Present", key=f"view_{key}"):
-                        if 'pdf_images' in st.session_state:
-                            del st.session_state.pdf_images
-                        if 'current_pdf_key' in st.session_state:
-                            del st.session_state.current_pdf_key
-                        st.session_state.viewing_course = course
-                        st.rerun()
-                
-                with col2:
-                    if st.button(f"📥 Download", key=f"down_{key}"):
-                        with open(course["path"], "rb") as f:
-                            st.download_button(
-                                label="Click to download",
-                                data=f,
-                                file_name=course["filename"],
-                                key=f"down_btn_{key}",
-                                hidden=True
-                            )
-                
-                with col3:
-                    if st.button(f"🗑️ Delete", key=f"del_{key}"):
-                        course_folder = Path(course["path"]).parent
-                        images_folder = course_folder / "images"
-                        pdf_pages_folder = Path(f"courses/pdf_pages/{key.replace('.pdf', '')}")
-                        if delete_course(key, course["path"], images_folder, pdf_pages_folder):
-                            st.warning(f"💔 Course '{course['title']}' deleted")
-                            time.sleep(0.5)
-                            st.rerun()
-    else:
-        st.info("🌸 No courses yet. Upload your first course above!")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def student_mode(metadata):
-    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
-    
-    st.subheader("🎓 Browse Your Courses")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        level = st.selectbox("📚 Select Main Level", ["A", "B", "C"])
-    with col2:
-        sub_level = st.selectbox("🎯 Select Sub-level", ["1", "2", "3"])
-    
-    full_level = f"{level}{sub_level}"
-    
-    available_courses = {k: v for k, v in metadata.items() if v["level"] == full_level}
-    
-    if available_courses:
-        st.success(f"✨ Found {len(available_courses)} course(s) for Level {full_level} ✨")
-        
-        for key, course in available_courses.items():
-            with st.expander(f"📖 {course['title']}", expanded=True):
-                col1, col2 = st.columns([2, 1])
-                
-                with col1:
-                    st.markdown(f"""
-                        <div style="background: #fff0f5; padding: 15px; border-radius: 15px;">
-                            <strong>💭 Description:</strong><br>
-                            {course['description']}<br><br>
-                            <strong>📅 Uploaded:</strong> {course['upload_date']}<br>
-                            <strong>🎯 Level:</strong> {course['level']}<br>
-                            <strong>📄 Type:</strong> PDF Document
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if st.button(f"🎬 View Course", key=f"view_student_{key}"):
-                        if 'pdf_images' in st.session_state:
-                            del st.session_state.pdf_images
-                        if 'current_pdf_key' in st.session_state:
-                            del st.session_state.current_pdf_key
-                        st.session_state.viewing_course = course
-                        st.rerun()
-                
-                with col2:
-                    with open(course["path"], "rb") as f:
-                        st.download_button(
-                            label="📥 Download Course",
-                            data=f,
-                            file_name=course["filename"],
-                            mime="application/pdf",
-                            use_container_width=True,
-                            key=f"student_download_{key}"
-                        )
-                
-                if st.button(f"💡 Get a tip", key=f"tip_{key}"):
-                    tips = [
-                        "✨ Take notes while reading!",
-                        "💕 Practice with a friend!",
-                        "⭐ Review key vocabulary after!",
-                        "🌸 Ask questions if something is unclear!"
-                    ]
-                    import random
-                    st.info(f"💖 Tip: {random.choice(tips)}")
-    else:
-        st.warning(f"💔 No courses available for Level {full_level} yet.")
-        st.markdown("""
-            <div style="text-align: center; padding: 40px;">
-                <div style="font-size: 50px;">📚✨</div>
-                <p style="color: #c2185b;">Ask your teacher to upload courses for this level!</p>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-if __name__ == "__main__":
-    init_folders()
-    main()
+                level =
