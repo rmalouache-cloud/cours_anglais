@@ -3,5 +3,5 @@ python-pptx
 Pillow
 lxml
 XlsxWriter
-pdf2image
+PyMuPDF
 reportlab
