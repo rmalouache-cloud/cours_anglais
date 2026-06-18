@@ -6,6 +6,8 @@ import time
 from PIL import Image
 import io
 import base64
+import tempfile
+import shutil
 
 # Page configuration
 st.set_page_config(
@@ -52,14 +54,19 @@ st.markdown("""
         transform: translateY(-5px);
     }
     
-    .slide-container {
+    .pdf-page-container {
         background: white;
         border-radius: 20px;
-        padding: 30px;
+        padding: 20px;
         margin: 20px 0;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        min-height: 400px;
-        text-align: left;
+        text-align: center;
+    }
+    
+    .pdf-page-image {
+        max-width: 100%;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
     
     @keyframes fadeInUp {
@@ -94,6 +101,7 @@ def init_folders():
         for sub in sub_levels:
             Path(f"courses/Level_{level}/{level}{sub}").mkdir(parents=True, exist_ok=True)
             Path(f"courses/Level_{level}/{level}{sub}/images").mkdir(parents=True, exist_ok=True)
+            Path(f"courses/Level_{level}/{level}{sub}/pdf_pages").mkdir(parents=True, exist_ok=True)
     Path("data").mkdir(exist_ok=True)
 
 # Load metadata
@@ -109,13 +117,14 @@ def save_metadata(metadata):
         json.dump(metadata, f, indent=4)
 
 # Delete course
-def delete_course(course_key, course_path, images_folder):
+def delete_course(course_key, course_path, images_folder, pdf_pages_folder=None):
     try:
         if os.path.exists(course_path):
             os.remove(course_path)
         if os.path.exists(images_folder):
-            import shutil
             shutil.rmtree(images_folder)
+        if pdf_pages_folder and os.path.exists(pdf_pages_folder):
+            shutil.rmtree(pdf_pages_folder)
         metadata = load_metadata()
         if course_key in metadata:
             del metadata[course_key]
@@ -124,87 +133,85 @@ def delete_course(course_key, course_path, images_folder):
     except:
         return False
 
-# Convert PDF to pages with text extraction
-def convert_pdf_to_pages(pdf_path):
-    """Extract text from PDF pages"""
+# Convert PDF to images using pdf2image
+def convert_pdf_to_images(pdf_path, output_folder):
+    """Convert PDF pages to images using pdf2image"""
     try:
-        import PyPDF2
+        from pdf2image import convert_from_path
         
-        pages_html = []
+        # Convert PDF to images
+        images = convert_from_path(pdf_path, dpi=150)
         
-        with open(pdf_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            total_pages = len(pdf_reader.pages)
+        # Save images
+        image_paths = []
+        for i, image in enumerate(images):
+            # Resize if too large
+            if image.width > 1200:
+                ratio = 1200 / image.width
+                new_size = (1200, int(image.height * ratio))
+                image = image.resize(new_size, Image.Resampling.LANCZOS)
             
-            for page_num in range(total_pages):
-                page = pdf_reader.pages[page_num]
-                text = page.extract_text()
-                
-                # Clean the text
-                if text:
-                    # Split into paragraphs
-                    paragraphs = text.split('\n')
-                    # Remove empty paragraphs
-                    paragraphs = [p.strip() for p in paragraphs if p.strip()]
-                    
-                    # Build HTML content
-                    html_content = f"""
-                    <div style="
-                        width: 100%;
-                        min-height: 400px;
-                        background: white;
-                        border-radius: 15px;
-                        padding: 40px;
-                        font-family: 'Segoe UI', Arial, sans-serif;
-                        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                    ">
-                        <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">
-                            Page {page_num + 1} of {total_pages}
-                        </h2>
-                        <div style="font-size: 18px; line-height: 1.8; margin-top: 20px;">
-                    """
-                    
-                    # Add content
-                    if paragraphs:
-                        for para in paragraphs:
-                            # Check if it looks like a title (short, all caps, or ends with :)
-                            if len(para) < 100 and (para.isupper() or para.endswith(':')):
-                                html_content += f"<h3 style='color: #ff69b4; margin-top: 20px;'>{para}</h3>"
-                            else:
-                                html_content += f"<p style='margin: 10px 0;'>{para}</p>"
-                    else:
-                        html_content += "<p style='color: #999; text-align: center;'>No text content on this page</p>"
-                    
-                    html_content += """
-                        </div>
-                    </div>
-                    """
-                    pages_html.append(html_content)
-                else:
-                    # Empty page
-                    html_content = f"""
-                    <div style="
-                        width: 100%;
-                        min-height: 400px;
-                        background: white;
-                        border-radius: 15px;
-                        padding: 40px;
-                        font-family: 'Segoe UI', Arial, sans-serif;
-                        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                        text-align: center;
-                    ">
-                        <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">
-                            Page {page_num + 1} of {total_pages}
-                        </h2>
-                        <p style='color: #999; margin-top: 40px;'>📄 This page appears to be blank or contains only images</p>
-                    </div>
-                    """
-                    pages_html.append(html_content)
+            # Save image
+            image_path = os.path.join(output_folder, f"page_{i+1}.png")
+            image.save(image_path, "PNG", optimize=True)
+            image_paths.append(image_path)
+        
+        return image_paths
+        
+    except Exception as e:
+        st.error(f"Error converting PDF to images: {str(e)}")
+        return None
+
+# Convert PDF to HTML pages with images
+def convert_pdf_to_html_pages(pdf_path, course_key):
+    """Convert PDF to HTML pages with images"""
+    try:
+        # Create folder for PDF pages if not exists
+        pdf_pages_folder = Path(f"courses/pdf_pages/{course_key}")
+        pdf_pages_folder.mkdir(parents=True, exist_ok=True)
+        
+        # Check if images already exist
+        existing_images = list(pdf_pages_folder.glob("page_*.png"))
+        if existing_images:
+            # Use existing images
+            image_paths = sorted([str(img) for img in existing_images])
+        else:
+            # Convert PDF to images
+            image_paths = convert_pdf_to_images(pdf_path, str(pdf_pages_folder))
+            if not image_paths:
+                return None
+        
+        # Build HTML for each page
+        pages_html = []
+        for i, img_path in enumerate(image_paths):
+            # Read image and convert to base64
+            with open(img_path, "rb") as f:
+                img_data = base64.b64encode(f.read()).decode()
+            
+            html_content = f"""
+            <div style="
+                width: 100%;
+                min-height: 400px;
+                background: white;
+                border-radius: 15px;
+                padding: 20px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                text-align: center;
+            ">
+                <h2 style="color: #c2185b; border-bottom: 2px solid #ff69b4; padding-bottom: 10px;">
+                    Page {i + 1} of {len(image_paths)}
+                </h2>
+                <img src="data:image/png;base64,{img_data}" 
+                     style="max-width: 100%; border-radius: 10px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" />
+            </div>
+            """
+            pages_html.append(html_content)
         
         return pages_html
         
     except Exception as e:
-        st.error(f"Error reading PDF: {str(e)}")
+        st.error(f"Error processing PDF: {str(e)}")
         return None
 
 # Display PDF presentation
@@ -214,6 +221,9 @@ def display_presentation(course):
     # Back button
     if st.button("◀ Back to Courses", use_container_width=False):
         st.session_state['viewing_course'] = None
+        # Clean up session state
+        if 'pdf_pages' in st.session_state:
+            del st.session_state.pdf_pages
         st.rerun()
     
     # Title
@@ -226,11 +236,31 @@ def display_presentation(course):
     
     st.markdown("---")
     
+    # Generate unique key for this course
+    course_key = f"{course['level']}_{course['filename']}".replace('.pdf', '')
+    
     # Check if we have PDF pages cached
-    pages_html = convert_pdf_to_pages(course["path"])
+    if 'pdf_pages' not in st.session_state or st.session_state.get('current_pdf_key') != course_key:
+        pages_html = convert_pdf_to_html_pages(course["path"], course_key)
+        if pages_html:
+            st.session_state.pdf_pages = pages_html
+            st.session_state.current_pdf_key = course_key
+            st.session_state.slide_index = 0
+        else:
+            st.error("❌ Cannot display this PDF. Please make sure the file is valid.")
+            with open(course["path"], "rb") as f:
+                st.download_button(
+                    label="📥 Download PDF",
+                    data=f,
+                    file_name=course["filename"],
+                    mime="application/pdf"
+                )
+            return
+    
+    pages_html = st.session_state.pdf_pages
     
     if pages_html:
-        # Initialize page index
+        # Initialize page index if not exists
         if 'slide_index' not in st.session_state:
             st.session_state.slide_index = 0
         
@@ -260,7 +290,7 @@ def display_presentation(course):
             # Fullscreen button with JavaScript
             fullscreen_html = """
                 <button onclick="
-                    var elem = document.querySelector('.slide-container');
+                    var elem = document.querySelector('.pdf-page-container');
                     if (elem.requestFullscreen) {
                         elem.requestFullscreen();
                     } else if (elem.webkitRequestFullscreen) {
@@ -286,7 +316,7 @@ def display_presentation(course):
         
         # Display current page
         st.markdown("---")
-        st.markdown(f'<div class="slide-container">{pages_html[st.session_state.slide_index]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="pdf-page-container">{pages_html[st.session_state.slide_index]}</div>', unsafe_allow_html=True)
         
         # Navigation hint
         st.info("💡 **Tip:** Use ← and → arrow keys on your keyboard to navigate pages")
@@ -302,7 +332,7 @@ def display_presentation(course):
                 )
     
     else:
-        st.error("❌ Cannot display this PDF. Please make sure the file is valid and contains text.")
+        st.error("❌ Cannot display this PDF. Please make sure the file is valid.")
         with open(course["path"], "rb") as f:
             st.download_button(
                 label="📥 Download PDF",
@@ -456,6 +486,11 @@ def teacher_mode(metadata):
                     """, unsafe_allow_html=True)
                     
                     if st.button(f"🎬 View & Present", key=f"view_{key}"):
+                        # Clear cached PDF pages
+                        if 'pdf_pages' in st.session_state:
+                            del st.session_state.pdf_pages
+                        if 'current_pdf_key' in st.session_state:
+                            del st.session_state.current_pdf_key
                         st.session_state.viewing_course = course
                         st.rerun()
                 
@@ -474,7 +509,8 @@ def teacher_mode(metadata):
                     if st.button(f"🗑️ Delete", key=f"del_{key}"):
                         course_folder = Path(course["path"]).parent
                         images_folder = course_folder / "images"
-                        if delete_course(key, course["path"], images_folder):
+                        pdf_pages_folder = Path(f"courses/pdf_pages/{key.replace('.pdf', '')}")
+                        if delete_course(key, course["path"], images_folder, pdf_pages_folder):
                             st.warning(f"💔 Course '{course['title']}' deleted")
                             time.sleep(0.5)
                             st.rerun()
@@ -517,6 +553,11 @@ def student_mode(metadata):
                     """, unsafe_allow_html=True)
                     
                     if st.button(f"🎬 View Course", key=f"view_student_{key}"):
+                        # Clear cached PDF pages
+                        if 'pdf_pages' in st.session_state:
+                            del st.session_state.pdf_pages
+                        if 'current_pdf_key' in st.session_state:
+                            del st.session_state.current_pdf_key
                         st.session_state.viewing_course = course
                         st.rerun()
                 
