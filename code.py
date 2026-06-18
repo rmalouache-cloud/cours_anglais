@@ -137,22 +137,6 @@ st.markdown("""
         75% { transform: translateY(10px) rotate(-5deg); }
     }
     
-    /* Animation des pages PDF */
-    .pdf-page-container {
-        animation: pageSlide 0.5s ease-out;
-    }
-    
-    @keyframes pageSlide {
-        from {
-            opacity: 0;
-            transform: scale(0.95) rotate(-2deg);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1) rotate(0deg);
-        }
-    }
-    
     /* Animation des icônes */
     .icon-bounce {
         display: inline-block;
@@ -974,4 +958,15 @@ def teacher_mode(metadata):
                         images_folder = course_folder / "images"
                         pdf_pages_folder = Path(f"courses/pdf_pages/{key.replace('.pdf', '')}")
                         if delete_course(key, course["path"], images_folder, pdf_pages_folder):
-                            st.warning
+                            st.warning(f"💔 Course '{course['title']}' deleted")
+                            time.sleep(0.5)
+                            st.rerun()
+    else:
+        st.info("🌸 No courses yet. Upload your first course above!")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def student_mode(metadata):
+    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+    
+    st
