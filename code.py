@@ -953,5 +953,3 @@ def student_mode(metadata):
                             <strong>📄 Type:</strong> PDF Document
                         </div>
                     """, unsafe_allow_html=True)
-                    
-                    if st
