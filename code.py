@@ -16,7 +16,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS with animations
+# Custom CSS
 st.markdown("""
 <style>
     .stApp {
@@ -48,12 +48,10 @@ st.markdown("""
         margin: 10px 0;
         box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         border: 1px solid #ffc0cb;
-        transition: all 0.3s ease;
     }
     
     .course-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(255,20,147,0.15);
     }
     
     @keyframes fadeInUp {
@@ -64,80 +62,10 @@ st.markdown("""
     .fade-in {
         animation: fadeInUp 0.6s ease-out;
     }
-    
-    @keyframes float {
-        0% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-15px) rotate(5deg); }
-        100% { transform: translateY(0px) rotate(0deg); }
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0) scale(1); }
-        50% { transform: translateY(-10px) scale(1.1); }
-    }
-    
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.2); opacity: 0.7; }
-    }
-    
-    @keyframes shimmer {
-        0% { background-position: -200% center; }
-        100% { background-position: 200% center; }
-    }
-    
-    .floating-logo {
-        animation: float 3s ease-in-out infinite;
-        display: inline-block;
-    }
-    
-    .spinning-icon {
-        animation: spin 4s linear infinite;
-        display: inline-block;
-    }
-    
-    .bouncing-icon {
-        animation: bounce 2s ease-in-out infinite;
-        display: inline-block;
-    }
-    
-    .pulsing-icon {
-        animation: pulse 2s ease-in-out infinite;
-        display: inline-block;
-    }
-    
-    .rainbow-text {
-        background: linear-gradient(45deg, #ff69b4, #ff1493, #ff69b4, #ff1493);
-        background-size: 200% auto;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: shimmer 3s linear infinite;
-        display: inline-block;
-    }
-    
-    .hover-lift {
-        transition: all 0.3s ease;
-    }
-    
-    .hover-lift:hover {
-        transform: translateY(-5px) scale(1.02);
-        box-shadow: 0 10px 30px rgba(255,20,147,0.2);
-    }
-    
-    .welcome-section {
-        animation: fadeInUp 1s ease-out;
-        text-align: center;
-        padding: 40px 20px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize folders with sample data
+# Initialize folders
 def init_folders():
     levels = ["A", "B", "C"]
     sub_levels = ["1", "2", "3"]
@@ -147,50 +75,11 @@ def init_folders():
             Path(f"courses/Level_{level}/{level}{sub}/images").mkdir(parents=True, exist_ok=True)
     Path("data").mkdir(exist_ok=True)
     Path("courses/pdf_pages").mkdir(parents=True, exist_ok=True)
-    
-    # Create sample metadata if it doesn't exist
-    metadata_path = Path("data/courses_metadata.json")
-    if not metadata_path.exists():
-        sample_metadata = {
-            "A1_sample_course": {
-                "title": "Introduction to English - Sample",
-                "description": "A beginner-friendly introduction to English language basics. Perfect for starting your English journey!",
-                "level": "A1",
-                "path": "",
-                "filename": "sample.pdf",
-                "upload_date": time.strftime("%Y-%m-%d %H:%M"),
-                "type": "pdf",
-                "is_sample": True
-            },
-            "A2_sample_course": {
-                "title": "Everyday Conversations - Sample",
-                "description": "Learn practical English for daily conversations, greetings, and common phrases.",
-                "level": "A2",
-                "path": "",
-                "filename": "sample.pdf",
-                "upload_date": time.strftime("%Y-%m-%d %H:%M"),
-                "type": "pdf",
-                "is_sample": True
-            },
-            "B1_sample_course": {
-                "title": "Grammar Mastery - Sample",
-                "description": "Master English grammar with clear explanations and practical examples.",
-                "level": "B1",
-                "path": "",
-                "filename": "sample.pdf",
-                "upload_date": time.strftime("%Y-%m-%d %H:%M"),
-                "type": "pdf",
-                "is_sample": True
-            }
-        }
-        with open(metadata_path, "w") as f:
-            json.dump(sample_metadata, f, indent=4)
 
 # Load metadata
 def load_metadata():
-    metadata_path = Path("data/courses_metadata.json")
-    if metadata_path.exists():
-        with open(metadata_path, "r") as f:
+    if os.path.exists("data/courses_metadata.json"):
+        with open("data/courses_metadata.json", "r") as f:
             return json.load(f)
     return {}
 
@@ -277,10 +166,11 @@ def convert_pdf_to_base64_images(pdf_path, course_key):
         st.error(f"Erreur lors du traitement du PDF : {str(e)}")
         return None
 
-# Create HTML viewer
+# Create HTML viewer complet avec bouton fullscreen EN HAUT
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
     """Generate complete HTML with fullscreen button at top and navigation below"""
     
+    # Get current image
     current_img = images_base64[current_page]
     
     html_code = f"""
@@ -309,12 +199,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 padding: 30px;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.1);
                 transition: all 0.3s ease;
-                animation: fadeInUp 0.6s ease-out;
-            }}
-            
-            @keyframes fadeInUp {{
-                from {{ transform: translateY(20px); opacity: 0; }}
-                to {{ transform: translateY(0); opacity: 1; }}
             }}
             
             .presentation-container:fullscreen {{
@@ -330,6 +214,33 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 justify-content: center;
             }}
             
+            .presentation-container:-webkit-full-screen {{
+                max-width: 100%;
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                padding: 20px;
+                overflow-y: auto;
+                background: white;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }}
+            
+            .presentation-container:-moz-full-screen {{
+                max-width: 100%;
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                padding: 20px;
+                overflow-y: auto;
+                background: white;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }}
+            
+            /* Style du bouton fullscreen EN HAUT */
             .fullscreen-top {{
                 display: flex;
                 justify-content: flex-end;
@@ -421,11 +332,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 border-radius: 8px;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.08);
                 user-select: none;
-                transition: all 0.3s ease;
-            }}
-            
-            .page-image:hover {{
-                transform: scale(1.01);
             }}
             
             .nav-buttons {{
@@ -490,6 +396,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
     </head>
     <body>
         <div class="presentation-container" id="presentationContainer">
+            <!-- FULLSCREEN BUTTON EN HAUT -->
             <div class="fullscreen-top">
                 <button class="btn-fullscreen" id="fullscreenBtn">
                     🖥️ PLEIN ÉCRAN
@@ -565,6 +472,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 }}
             }});
             
+            // Fullscreen - le bouton est dans le même document !
             document.getElementById('fullscreenBtn').addEventListener('click', function() {{
                 if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {{
                     if (container.requestFullscreen) {{
@@ -607,32 +515,27 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
 def display_presentation(course):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
     
+    # Back button
     if st.button("◀ Back to Courses", use_container_width=False):
         st.session_state['viewing_course'] = None
         if 'pdf_images' in st.session_state:
             del st.session_state.pdf_images
         st.rerun()
     
+    # Title
     st.markdown(f"""
         <div style="text-align: center;">
-            <h2>
-                <span class="floating-logo">📖</span> 
-                {course['title']} 
-                <span class="floating-logo" style="animation-delay: 0.5s;">✨</span>
-            </h2>
-            <p style="color: #c2185b;">
-                <span class="bouncing-icon">🎯</span> 
-                Level {course['level']} 
-                <span class="pulsing-icon">📅</span> 
-                {course['upload_date']}
-            </p>
+            <h2>📖 {course['title']}</h2>
+            <p style="color: #c2185b;">Level {course['level']} | {course['upload_date']}</p>
         </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
     
+    # Generate unique key for this course
     course_key = f"{course['level']}_{course['filename']}".replace('.pdf', '')
     
+    # Check if we have PDF images cached
     if 'pdf_images' not in st.session_state or st.session_state.get('current_pdf_key') != course_key:
         with st.spinner("🔄 Conversion du PDF en cours..."):
             images_base64 = convert_pdf_to_base64_images(course["path"], course_key)
@@ -654,24 +557,27 @@ def display_presentation(course):
     images_base64 = st.session_state.pdf_images
     total_pages = len(images_base64)
     
+    # Initialize page index
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 0
     
+    # Affichage du numéro de page et progression (simplifié)
     col1, col2, col3 = st.columns([1, 3, 1])
     
+    with col1:
+        st.write("")
+    
     with col2:
-        st.markdown(f"""
-            <h3 style="text-align: center; color: #c2185b;">
-                <span class="floating-logo">📄</span> 
-                Page {st.session_state.current_page + 1} / {total_pages}
-                <span class="floating-logo" style="animation-delay: 0.5s;">📄</span>
-            </h3>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<h3 style='text-align: center; color: #c2185b;'>Page {st.session_state.current_page + 1} / {total_pages}</h3>", unsafe_allow_html=True)
         progress = (st.session_state.current_page + 1) / total_pages
         st.progress(progress)
     
+    with col3:
+        st.write("")
+    
     st.markdown("---")
     
+    # Create HTML viewer complet (fullscreen + navigation)
     html_viewer = create_html_viewer(
         images_base64,
         st.session_state.current_page,
@@ -679,8 +585,10 @@ def display_presentation(course):
         course['title']
     )
     
+    # Display the HTML component
     st.components.v1.html(html_viewer, height=780, scrolling=True)
     
+    # Download option
     with st.expander("📥 Télécharger le PDF original", expanded=False):
         with open(course["path"], "rb") as f:
             st.download_button(
@@ -697,30 +605,17 @@ def main():
     if 'viewing_course' not in st.session_state:
         st.session_state.viewing_course = None
     
-    # Animated title
+    # Title
     st.markdown("""
         <div style="text-align: center; animation: fadeInUp 0.8s ease-out;">
-            <h1>
-                <span class="floating-logo">🌸</span> 
-                <span class="rainbow-text">English Teacher's Platform</span> 
-                <span class="floating-logo" style="animation-delay: 0.5s;">🌸</span>
-            </h1>
-            <p style="color: #c2185b; font-size: 18px;">
-                <span class="bouncing-icon">✨</span> 
-                Make learning beautiful and fun! 
-                <span class="bouncing-icon" style="animation-delay: 0.3s;">✨</span>
-            </p>
+            <h1>🌸 English Teacher's Platform 🌸</h1>
+            <p style="color: #c2185b; font-size: 18px;">✨ Make learning beautiful and fun! ✨</p>
         </div>
     """, unsafe_allow_html=True)
     
-    # Animated icons
     st.markdown("""
         <div style="text-align: center; margin-bottom: 20px; font-size: 30px;">
-            <span class="floating-logo">📖</span> 
-            <span class="floating-logo" style="animation-delay: 0.2s;">📝</span> 
-            <span class="floating-logo" style="animation-delay: 0.4s;">🎓</span> 
-            <span class="floating-logo" style="animation-delay: 0.6s;">✏️</span> 
-            <span class="floating-logo" style="animation-delay: 0.8s;">📕</span>
+            📖 📝 🎓 ✏️ 📕
         </div>
     """, unsafe_allow_html=True)
     
@@ -728,14 +623,8 @@ def main():
     with st.sidebar:
         st.markdown("""
             <div style="text-align: center; padding: 20px 0;">
-                <h3 style="color: #ff69b4;">
-                    <span class="bouncing-icon">✨</span> 
-                    Welcome! 
-                    <span class="bouncing-icon" style="animation-delay: 0.3s;">✨</span>
-                </h3>
-                <div style="font-size: 30px;">
-                    <span class="floating-logo">👩‍🏫</span>
-                </div>
+                <h3 style="color: #ff69b4;">✨ Welcome! ✨</h3>
+                <div style="font-size: 30px;">👩‍🏫</div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -760,27 +649,6 @@ def main():
 
 def teacher_mode(metadata):
     st.markdown('<div class="fade-in">', unsafe_allow_html=True)
-    
-    # Welcome message
-    if not metadata or all(c.get('is_sample', False) for c in metadata.values()):
-        st.markdown("""
-            <div class="welcome-section">
-                <h2>
-                    <span class="floating-logo">🎉</span> 
-                    Welcome to Your English Platform! 
-                    <span class="floating-logo" style="animation-delay: 0.5s;">🎉</span>
-                </h2>
-                <p style="font-size: 18px; color: #c2185b;">
-                    Start by uploading your first course below! 
-                    <span class="bouncing-icon">⬇️</span>
-                </p>
-                <div style="font-size: 50px; margin: 20px 0;">
-                    <span class="floating-logo">📚</span>
-                    <span class="floating-logo" style="animation-delay: 0.3s;">✨</span>
-                    <span class="floating-logo" style="animation-delay: 0.6s;">🌟</span>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
     
     col1, col2 = st.columns([2, 1])
     
@@ -834,13 +702,12 @@ def teacher_mode(metadata):
     
     with col2:
         st.subheader("📊 Quick Stats")
-        real_courses = [c for c in metadata.values() if not c.get('is_sample', False)]
-        total_courses = len(real_courses)
+        total_courses = len(metadata)
         st.info(f"📚 **Total courses:** {total_courses}")
         
-        if real_courses:
+        if metadata:
             levels_count = {}
-            for course in real_courses:
+            for course in metadata.values():
                 level = course["level"]
                 levels_count[level] = levels_count.get(level, 0) + 1
             
@@ -851,13 +718,10 @@ def teacher_mode(metadata):
     st.markdown("---")
     st.subheader("📚 Manage Your Courses")
     
-    # Filter out sample courses from display
-    real_courses = {k: v for k, v in metadata.items() if not v.get('is_sample', False)}
-    
-    if real_courses:
-        filter_level = st.selectbox("Filter by level:", ["All"] + sorted(set(c["level"] for c in real_courses.values())))
+    if metadata:
+        filter_level = st.selectbox("Filter by level:", ["All"] + sorted(set(c["level"] for c in metadata.values())))
         
-        for key, course in real_courses.items():
+        for key, course in metadata.items():
             if filter_level != "All" and course["level"] != filter_level:
                 continue
                 
@@ -866,8 +730,8 @@ def teacher_mode(metadata):
                 with col1:
                     file_type = "📄" if course.get("type", "pdf") == "pdf" else "📄"
                     st.markdown(f"""
-                        <div class="course-card hover-lift">
-                            <strong><span class="floating-logo">{file_type}</span> {course['title']}</strong><br>
+                        <div class="course-card">
+                            <strong>{file_type} {course['title']}</strong><br>
                             <small>🎯 Level {course['level']}</small><br>
                             <small>📅 {course['upload_date']}</small><br>
                             <small>💭 {course['description']}</small>
@@ -903,19 +767,7 @@ def teacher_mode(metadata):
                             time.sleep(0.5)
                             st.rerun()
     else:
-        st.info("""
-            <div style="text-align: center; padding: 20px;">
-                <div style="font-size: 40px;">
-                    <span class="floating-logo">🌸</span>
-                    <span class="floating-logo" style="animation-delay: 0.3s;">📚</span>
-                    <span class="floating-logo" style="animation-delay: 0.6s;">✨</span>
-                </div>
-                <p style="font-size: 18px; color: #c2185b;">
-                    No courses yet. Upload your first course above! 
-                    <span class="bouncing-icon">⬆️</span>
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
+        st.info("🌸 No courses yet. Upload your first course above!")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -932,9 +784,7 @@ def student_mode(metadata):
     
     full_level = f"{level}{sub_level}"
     
-    # Show real courses only
-    real_courses = {k: v for k, v in metadata.items() if not v.get('is_sample', False)}
-    available_courses = {k: v for k, v in real_courses.items() if v["level"] == full_level}
+    available_courses = {k: v for k, v in metadata.items() if v["level"] == full_level}
     
     if available_courses:
         st.success(f"✨ Found {len(available_courses)} course(s) for Level {full_level} ✨")
@@ -945,7 +795,7 @@ def student_mode(metadata):
                 
                 with col1:
                     st.markdown(f"""
-                        <div style="background: #fff0f5; padding: 15px; border-radius: 15px; transition: all 0.3s ease;">
+                        <div style="background: #fff0f5; padding: 15px; border-radius: 15px;">
                             <strong>💭 Description:</strong><br>
                             {course['description']}<br><br>
                             <strong>📅 Uploaded:</strong> {course['upload_date']}<br>
@@ -953,3 +803,46 @@ def student_mode(metadata):
                             <strong>📄 Type:</strong> PDF Document
                         </div>
                     """, unsafe_allow_html=True)
+                    
+                    if st.button(f"🎬 View Course", key=f"view_student_{key}"):
+                        if 'pdf_images' in st.session_state:
+                            del st.session_state.pdf_images
+                        if 'current_pdf_key' in st.session_state:
+                            del st.session_state.current_pdf_key
+                        st.session_state.viewing_course = course
+                        st.rerun()
+                
+                with col2:
+                    with open(course["path"], "rb") as f:
+                        st.download_button(
+                            label="📥 Download Course",
+                            data=f,
+                            file_name=course["filename"],
+                            mime="application/pdf",
+                            use_container_width=True,
+                            key=f"student_download_{key}"
+                        )
+                
+                if st.button(f"💡 Get a tip", key=f"tip_{key}"):
+                    tips = [
+                        "✨ Take notes while reading!",
+                        "💕 Practice with a friend!",
+                        "⭐ Review key vocabulary after!",
+                        "🌸 Ask questions if something is unclear!"
+                    ]
+                    import random
+                    st.info(f"💖 Tip: {random.choice(tips)}")
+    else:
+        st.warning(f"💔 No courses available for Level {full_level} yet.")
+        st.markdown("""
+            <div style="text-align: center; padding: 40px;">
+                <div style="font-size: 50px;">📚✨</div>
+                <p style="color: #c2185b;">Ask your teacher to upload courses for this level!</p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    init_folders()
+    main()
