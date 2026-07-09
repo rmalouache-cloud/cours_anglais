@@ -63,3 +63,5 @@ Thumbs.db
 *.key
 secrets.txt
 .env
+
+.streamlit/secrets.toml
