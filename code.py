@@ -7,7 +7,8 @@ from PIL import Image
 import io
 import base64
 import fitz  # PyMuPDF
-from supabase import create_client, Client
+from b2sdk.v2 import InMemoryAccountInfo, B2Api
+import sqlite3
 
 # ==============================
 # PAGE CONFIG
@@ -19,7 +20,7 @@ st.set_page_config(
 )
 
 # ==============================
-# CUSTOM CSS  (identique à ton original)
+# CUSTOM CSS
 # ==============================
 st.markdown("""
 <style>
@@ -55,47 +56,123 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================
-# SUPABASE  (stockage permanent)
+# BACKBLAZE B2 CONFIG
 # ==============================
-BUCKET = "courses"
+BUCKET_NAME = "cours.ENGALAIS"  # Ton bucket Backblaze
 
 @st.cache_resource
-def get_supabase() -> Client:
-    return create_client(
-        st.secrets["SUPABASE_URL"],
-        st.secrets["SUPABASE_KEY"]
+def get_b2_api():
+    """Initialise la connexion Backblaze B2"""
+    info = InMemoryAccountInfo()
+    b2_api = B2Api(info)
+    b2_api.authorize_account(
+        "production",
+        st.secrets["BACKBLAZE_KEY_ID"],
+        st.secrets["BACKBLAZE_APPLICATION_KEY"]
     )
+    return b2_api
 
-# ── Metadata (table Supabase) ──────────────────────────────────────────────
+def get_bucket():
+    """Récupère le bucket Backblaze"""
+    api = get_b2_api()
+    return api.get_bucket_by_name(BUCKET_NAME)
+
+# ==============================
+# METADATA (SQLite locale)
+# ==============================
+DB_PATH = "data/courses.db"
+
+def init_db():
+    """Crée la base de données SQLite si elle n'existe pas"""
+    os.makedirs("data", exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS courses (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            level TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            storage_path TEXT NOT NULL,
+            upload_date TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
 def load_metadata() -> dict:
-    try:
-        rows = get_supabase().table("courses").select("*").execute().data
-        return {r["id"]: r for r in rows}
-    except Exception as e:
-        st.error(f"❌ Cannot load courses: {e}")
-        return {}
+    """Charge tous les cours depuis SQLite"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM courses")
+    rows = c.fetchall()
+    conn.close()
+    return {row["id"]: dict(row) for row in rows}
 
 def save_course(course_id: str, data: dict):
-    get_supabase().table("courses").upsert({"id": course_id, **data}).execute()
+    """Sauvegarde ou met à jour un cours"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT OR REPLACE INTO courses (id, title, description, level, filename, storage_path, upload_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (
+        course_id,
+        data["title"],
+        data["description"],
+        data["level"],
+        data["filename"],
+        data["storage_path"],
+        data["upload_date"]
+    ))
+    conn.commit()
+    conn.close()
 
 def remove_course(course_id: str):
-    get_supabase().table("courses").delete().eq("id", course_id).execute()
+    """Supprime un cours de la base"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM courses WHERE id = ?", (course_id,))
+    conn.commit()
+    conn.close()
 
-# ── File storage (bucket Supabase) ────────────────────────────────────────
+# ==============================
+# BACKBLAZE FILE OPERATIONS
+# ==============================
 def upload_pdf(file_bytes: bytes, storage_path: str):
-    get_supabase().storage.from_(BUCKET).upload(
-        storage_path, file_bytes,
-        {"content-type": "application/pdf", "upsert": "true"}
+    """Upload un PDF vers Backblaze B2"""
+    bucket = get_bucket()
+    # Upload depuis des bytes (pas de fichier local)
+    bucket.upload_bytes(
+        file_bytes=file_bytes,
+        file_name=storage_path,
+        content_type="application/pdf"
     )
 
 def download_pdf(storage_path: str) -> bytes:
-    return get_supabase().storage.from_(BUCKET).download(storage_path)
+    """Télécharge un PDF depuis Backblaze B2"""
+    bucket = get_bucket()
+    # Télécharger en mémoire
+    file_info = bucket.download_file_by_name(storage_path)
+    return file_info.read()
 
 def delete_pdf(storage_path: str):
-    get_supabase().storage.from_(BUCKET).remove([storage_path])
+    """Supprime un PDF de Backblaze B2"""
+    bucket = get_bucket()
+    bucket.delete_file_version(storage_path)
+
+def get_pdf_url(storage_path: str) -> str:
+    """Génère l'URL publique du PDF (si bucket public)"""
+    bucket = get_bucket()
+    return bucket.get_download_url(storage_path)
 
 # ==============================
-# PDF → BASE64 IMAGES  (PyMuPDF, en mémoire)
+# PDF → BASE64 IMAGES (PyMuPDF)
 # ==============================
 def pdf_bytes_to_base64_images(pdf_bytes: bytes) -> list:
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -114,7 +191,7 @@ def pdf_bytes_to_base64_images(pdf_bytes: bytes) -> list:
     return images_b64
 
 # ==============================
-# HTML VIEWER  (identique à ton original — fullscreen inclus)
+# HTML VIEWER (identique à ton original)
 # ==============================
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
     current_img = images_base64[current_page]
@@ -225,7 +302,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
         <div class="presentation-container" id="presentationContainer">
             <div class="fullscreen-top">
                 <button class="btn-fullscreen" id="fullscreenBtn">
-                    🖥️ PLEIN ÉCRAN
+                    🖥️ FULLSCREEN
                 </button>
             </div>
             <div class="header">
@@ -244,10 +321,10 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
             </div>
             <div class="nav-buttons">
                 <button class="btn-nav" id="prevBtn" {"disabled" if current_page == 0 else ""}>
-                    ◀◀ PRÉCÉDENT
+                    ◀◀ PREVIOUS
                 </button>
                 <button class="btn-nav" id="nextBtn" {"disabled" if current_page == total_pages - 1 else ""}>
-                    SUIVANT ▶▶
+                    NEXT ▶▶
                 </button>
             </div>
         </div>
@@ -324,10 +401,10 @@ def display_presentation(course):
 
     course_key = course["id"]
 
-    # Charge les images depuis Supabase (avec cache session)
+    # Charge les images depuis Backblaze (avec cache session)
     if 'pdf_images' not in st.session_state or \
        st.session_state.get('current_pdf_key') != course_key:
-        with st.spinner("🔄 Chargement du cours…"):
+        with st.spinner("🔄 Loading course…"):
             try:
                 pdf_bytes = download_pdf(course["storage_path"])
                 images_b64 = pdf_bytes_to_base64_images(pdf_bytes)
@@ -335,9 +412,9 @@ def display_presentation(course):
                 st.session_state.current_pdf_key = course_key
                 st.session_state.current_page    = 0
             except Exception as e:
-                st.error(f"❌ Impossible d'afficher ce PDF : {e}")
+                st.error(f"❌ Cannot display this PDF: {e}")
                 pdf_bytes = download_pdf(course["storage_path"])
-                st.download_button("📥 Télécharger le PDF", pdf_bytes,
+                st.download_button("📥 Download PDF", pdf_bytes,
                                    file_name=course["filename"],
                                    mime="application/pdf")
                 return
@@ -348,7 +425,7 @@ def display_presentation(course):
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 0
 
-    # Compteur et barre de progression Streamlit (au-dessus du viewer)
+    # Compteur et barre de progression Streamlit
     col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
         st.markdown(
@@ -369,10 +446,10 @@ def display_presentation(course):
     st.components.v1.html(html_viewer, height=780, scrolling=True)
 
     # Download
-    with st.expander("📥 Télécharger le PDF original", expanded=False):
+    with st.expander("📥 Download original PDF", expanded=False):
         pdf_bytes = download_pdf(course["storage_path"])
         st.download_button(
-            "Télécharger le fichier PDF",
+            "Download PDF",
             data=pdf_bytes,
             file_name=course["filename"],
             mime="application/pdf"
@@ -446,7 +523,7 @@ def teacher_mode(metadata):
                 storage_path = f"{full_level}/{uploaded.name}"
                 course_id    = f"{full_level}_{uploaded.name}"
 
-                with st.spinner("⬆️ Upload en cours…"):
+                with st.spinner("⬆️ Uploading to Backblaze…"):
                     upload_pdf(file_bytes, storage_path)
                     save_course(course_id, {
                         "title":        title,
@@ -458,7 +535,7 @@ def teacher_mode(metadata):
                     })
 
                 st.balloons()
-                st.success(f"✨ Course '{title}' saved! ✨")
+                st.success(f"✨ Course '{title}' saved to Backblaze! ✨")
                 time.sleep(0.5)
                 st.rerun()
             else:
@@ -582,4 +659,5 @@ def student_mode(metadata):
 # ENTRY POINT
 # ==============================
 if __name__ == "__main__":
+    init_db()
     main()
