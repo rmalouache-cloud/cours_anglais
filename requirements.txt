@@ -5,4 +5,4 @@ lxml
 XlsxWriter
 PyMuPDF
 reportlab
-b2sdk
+requests
